@@ -10,18 +10,19 @@ https://docs.omniverse.nvidia.com/isaacsim/latest/installation/install_workstati
 https://docs.omniverse.nvidia.com/isaacsim/latest/installation/install_ros.html#isaac-sim-app-install-ros
 
 3. Install the ROS Navigation stack:
+   
 sudo apt-get install ros-$ROS_DISTRO-navigation
     
-4. Replace the navigation folder in <path to ROS  workspace>/src with the folder of the same name found above.
+5. Replace the navigation folder in <path to ROS  workspace>/src with the folder of the same name found above.
  
-5. Download warehouse_build.usd and place in accessible location.
+6. Download warehouse_build.usd and place in accessible location.
  
-6. Open Isaac Sim → file → open → navigate to file →  warehouse_build.usd
+7. Open Isaac Sim → file → open → navigate to file →  warehouse_build.usd
 
-7. Press the play button in the tool bar to the left
+8. Press the play button in the tool bar to the left
     
-8. In a terminal run:
+9. In a terminal run:
 roslaunch carter_2dnav multiple_robot_carter_navigation.launch env_name:=warehouse_build
     
-9. In another terminal run:
+10. In another terminal run:
 roslaunch isaac_ros_navigation_goal isaac_ros_navigation_goal.launch
