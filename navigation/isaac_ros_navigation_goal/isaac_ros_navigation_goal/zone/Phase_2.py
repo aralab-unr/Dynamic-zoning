@@ -8,6 +8,8 @@ from itertools import permutations
 import matplotlib.pyplot as plt
 from csv import writer
 import time
+import os
+import rospkg
 
 class Phase2(Phase1):
     def __init__(self):
@@ -17,13 +19,7 @@ class Phase2(Phase1):
         self.phase1 = Phase1()
         self.phase1.create_map()
         self.phase1.start_phase1()
-        """"
-        self.P_initial_WS = zone_work_stations #2D list
-        self.P_initial_CS = zone_crit_segments #2D list
-        self.workstation_points = workstation_points #
-        self.ws_loads = work_station_loads #matix
-        self.adj_matrix = adj_matrix
-        """
+
         self.P_initial_WS = self.phase1.GW #2D list
         self.P_initial_CS = self.phase1.GS #2D list
         self.workstation_points = self.phase1.workstation_points
@@ -50,7 +46,7 @@ class Phase2(Phase1):
 
         #for phase 3
         df_ws_dist_mtx = pd.DataFrame(self.workstation_dist_mtx)
-        df_ws_dist_mtx.to_csv(r'/home/russell/thesis_ws/src/navigation/isaac_ros_navigation_goal/isaac_ros_navigation_goal/zone/data/WS_dist_mtx.csv', index=False)
+        df_ws_dist_mtx.to_csv(os.path.join(rospkg.RosPack().get_path('isaac_ros_navigation_goal'), 'isaac_ros_navigation_goal/zone/data','WS_dist_mtx.csv'), index=False)
     
     def start_GA(self,exetime):
         self.all_path()
@@ -76,18 +72,6 @@ class Phase2(Phase1):
         
         self.opt_ws = []
         self.opt_cs = []
-
-
-        #testws = [['WS10', 'WS11', 'WS8', 'WS9'], ['WS1', 'WS2', 'WS3'], ['WS4','WS7', 'WS6', 'WS5']]
-        #testcs = [[['a', 'Z', 'Y', 'b'], ['d', 'e', 'f', 'g', 'b'], ['c', 'W', 'V', 'd']], [['E', 'D', 'H', 'I'], ['E', 'F', 'J', 'O', 'P']], [['K', 'J', 'O', 'T', 'U'], ['X', 'L', 'M', 'K'], ['S', 'T', 'U']]]
-        #tip = self.finding_tip_ws(testws[1],testcs[1])
-        #print(tip)
-        #alladj_mtx = []
-        #for _ in range(self.num_of_zones):
-           #alladj_mtx.append(self.adj_matrix)
-
-        #alladj_mtx = self.update_adj_matrixs(alladj_mtx, testcs, self.adj_matrix)
-        #self.remove_tip_ws(testws,testcs,alladj_mtx,'WS7')
         
         exetime = exetime*60
         starttime = time.perf_counter()
@@ -97,7 +81,6 @@ class Phase2(Phase1):
         while(gen < gen_size):
             currenttime = time.perf_counter() - starttime
             allSVp = 0
-            #print("\ngeneration:",gen)
             #evaluate
             #calculate fitness for every solution
             ranked_sol = {} #this holds indexs corresponding to a solution both ws and cs
@@ -1302,15 +1285,5 @@ if __name__ == '__main__':
         row.append(test.get_lowestSVp())
         row.append(test.get_SAws())
         row.append(test.get_numtip())
-        #with open(r'C:/home/russell/thesis_ws/src/navigation/isaac_ros_navigation_goal/isaac_ros_navigation_goal/zone/data/GA2min.csv', 'a') as f_object:
-            #writer_object = writer(f_object)
-            #writer_object.writerow(row)
-            #print(row)
-            #f_object.close()
         row.clear()
         print("next time segment")
-            # Close the file object
-    #test.SA_improvement()
-    #test.read_csv()
-    #test.create_map()
-    #test.start_phase1()

@@ -17,11 +17,6 @@ class zone_control:
         self.test1 = Phase2()
         self.test1.start_GA(1)
         #self.test1.SA_improvement(1)
-        #index=0
-        #for x in self.test1.bestAdj_matrix:
-            #filepath = '/home/russell/thesis_ws/src/navigation/isaac_ros_navigation_goal/isaac_ros_navigation_goal/zone/data/adj'+str(index)+'.csv'
-            #pd.DataFrame(x).to_csv(filepath,index=False)
-            #index+=1
 
         #run phase 3 with phase 2 map
         self.test2 = Phase3(self.test1.opt_ws,self.test1.opt_cs,self.test1.bestAdj_matrix)
@@ -44,10 +39,6 @@ class zone_control:
             print("error couldn't find zones")
 
         index=0
-        for x in self.test1.bestAdj_matrix:
-            filepath = '/home/russell/thesis_ws/src/navigation/isaac_ros_navigation_goal/isaac_ros_navigation_goal/zone/data/adj'+str(index)+'.csv'
-            pd.DataFrame(x).to_csv(filepath,index=False)
-            index+=1
 
         #run phase 3 with phase 2 map
         self.test2 = Phase3(self.test1.opt_ws,self.test1.opt_cs,self.test1.bestAdj_matrix)

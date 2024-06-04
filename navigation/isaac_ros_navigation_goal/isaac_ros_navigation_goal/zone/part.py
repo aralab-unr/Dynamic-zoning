@@ -3,6 +3,8 @@ import pandas as pd
 import time
 import rospy
 from csv import writer, reader
+import os
+import rospkg
 
 class part:
 
@@ -14,11 +16,11 @@ class part:
         self.ID = ID_num
         self.starting = True
 
-        times = pd.read_csv(r'/home/russell/thesis_ws/src/navigation/isaac_ros_navigation_goal/isaac_ros_navigation_goal/zone/data/processing_time_test.csv', sep=',', header=0, names=['workstation','processing_time','deviation'], encoding = 'utf-8')
+        times = pd.read_csv(os.path.join(rospkg.RosPack().get_path('isaac_ros_navigation_goal'), 'isaac_ros_navigation_goal/zone/data','processing_time_test.csv'), sep=',', header=0, names=['workstation','processing_time','deviation'], encoding = 'utf-8')
         self.workstations = times['workstation']
         self.processing_times = times['processing_time']
 
-        processing_routes = pd.read_csv(r'/home/russell/thesis_ws/src/navigation/isaac_ros_navigation_goal/isaac_ros_navigation_goal/zone/data/processing_routes_test.csv', sep=',', header=0, names=['part_type','route','qty'], encoding = 'utf-8')
+        processing_routes = pd.read_csv(os.path.join(rospkg.RosPack().get_path('isaac_ros_navigation_goal'), 'isaac_ros_navigation_goal/zone/data','processing_routes_test.csv'), sep=',', header=0, names=['part_type','route','qty'], encoding = 'utf-8')
         #index = processing_routes.loc[(processing_routes == self.type).any(axis=1)].index[0]
         qtylist = processing_routes['qty']
         index = 0
@@ -41,7 +43,7 @@ class part:
 
         self.start_time = 0
 
-        with open('/home/russell/thesis_ws/src/navigation/isaac_ros_navigation_goal/isaac_ros_navigation_goal/zone/data/part_status.csv', 'a') as file:
+        with open(os.path.join(rospkg.RosPack().get_path('isaac_ros_navigation_goal'), 'isaac_ros_navigation_goal/zone/data','part_status.csv'), 'a') as file:
             line = writer(file)
             row = [ID_num,self.route,self.start_time]
             line.writerow(row)
@@ -123,7 +125,7 @@ class part:
         return currentTime.secs - self.start_time.secs
 
     def add_cycleTime(self):
-        with open('/home/russell/thesis_ws/src/navigation/isaac_ros_navigation_goal/isaac_ros_navigation_goal/zone/data/cycle_times.csv', 'a') as file:
+        with open(os.path.join(rospkg.RosPack().get_path('isaac_ros_navigation_goal'), 'isaac_ros_navigation_goal/zone/data','cycle_times.csv'), 'a') as file:
             writerobj = writer(file)
             writelist = [self.get_time(),self.type,self.ID]
             writerobj.writerow(writelist)
@@ -131,7 +133,7 @@ class part:
 
     def write_status(self):
         myrow = []
-        with open('/home/russell/thesis_ws/src/navigation/isaac_ros_navigation_goal/isaac_ros_navigation_goal/zone/data/part_status.csv', 'r') as file:
+        with open(os.path.join(rospkg.RosPack().get_path('isaac_ros_navigation_goal'), 'isaac_ros_navigation_goal/zone/data','part_status.csv'), 'r') as file:
             alllines = reader(file)
             for row in alllines:
                 myrow.append(row)
@@ -139,7 +141,7 @@ class part:
 
         rest_route = self.route[self.count_inRoute:]
         myrow[self.ID + 1] = [self.ID, rest_route,self.get_time()]
-        with open('/home/russell/thesis_ws/src/navigation/isaac_ros_navigation_goal/isaac_ros_navigation_goal/zone/data/part_status.csv', 'w') as file:
+        with open(os.path.join(rospkg.RosPack().get_path('isaac_ros_navigation_goal'), 'isaac_ros_navigation_goal/zone/data','part_status.csv'), 'w') as file:
             alllines = writer(file)
             for row in myrow:
                 alllines.writerow(row)

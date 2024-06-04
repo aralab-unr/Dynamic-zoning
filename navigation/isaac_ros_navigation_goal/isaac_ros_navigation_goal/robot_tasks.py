@@ -19,6 +19,8 @@ import concurrent.futures
 import time
 from rospy.numpy_msg import numpy_msg
 from csv import writer
+import os
+import rospkg
 
 
 class robot_task(Solution_module):
@@ -55,14 +57,18 @@ class robot_task(Solution_module):
         self.gen_intialws_q()
         self.prev_ready1 = False
 
-        self.workstation_loc = pd.read_csv(r'/home/russell/thesis_ws/src/navigation/isaac_ros_navigation_goal/isaac_ros_navigation_goal/zone/Workstation_Loaction.csv', sep=',', header=0, names=['x','y'], encoding = 'utf-8')
-        self.workstation_points = pd.read_csv(r'/home/russell/thesis_ws/src/navigation/isaac_ros_navigation_goal/isaac_ros_navigation_goal/zone/Workstation_points.csv', sep=',', header=0, names=['workstation','critical_points'], encoding = 'utf-8')
-        self.workstation_dist_mtx = pd.read_csv(r'/home/russell/thesis_ws/src/navigation/isaac_ros_navigation_goal/isaac_ros_navigation_goal/zone/data/WS_dist_mtx.csv', sep=',')
+        filepath = os.path.realpath("robot_tasks.py")
+        print(filepath)
+
+        self.workstation_loc = pd.read_csv(os.path.join(rospkg.RosPack().get_path('isaac_ros_navigation_goal'), 'isaac_ros_navigation_goal/zone/data','Workstation_Loaction.csv'), sep=',', header=0, names=['x','y'], encoding = 'utf-8')
+        self.workstation_points = pd.read_csv(os.path.join(rospkg.RosPack().get_path('isaac_ros_navigation_goal'), 'isaac_ros_navigation_goal/zone/data','Workstation_points.csv'), sep=',', header=0, names=['workstation','critical_points'], encoding = 'utf-8')
+        self.workstation_dist_mtx = pd.read_csv(os.path.join(rospkg.RosPack().get_path('isaac_ros_navigation_goal'), 'isaac_ros_navigation_goal/zone/data','WS_dist_mtx.csv'), sep=',')
         self.numws = len(self.workstation_points)
 
         self.recorded_load = np.zeros((self.numws,self.numws),dtype=np.float32)
         #historic_recload = pd.read_csv(r'/home/russell/thesis_ws/src/navigation/isaac_ros_navigation_goal/isaac_ros_navigation_goal/zone/Workstation_Loads.csv', sep=',', header=0, names=['WS1','WS2','WS3','WS4','WS5','WS6','WS7','WS8','WS9','WS10','WS11'], encoding = 'utf-8')
         #self.recorded_load = historic_recload.to_numpy()
+        #for testing
         '''
         self.recorded_load = np.array([ #continueing on
         #1,2,3,4,5,6,7,8,9,10,11
@@ -502,7 +508,7 @@ class robot_task(Solution_module):
         return [x_pos, y_pos ,0 ,0 ,1 ,0]
 
     def add_throughput(self):
-        with open('/home/russell/thesis_ws/src/navigation/isaac_ros_navigation_goal/isaac_ros_navigation_goal/zone/data/thoughput.csv', 'a') as file:
+        with open(os.path.join(rospkg.RosPack().get_path('isaac_ros_navigation_goal'), 'isaac_ros_navigation_goal/zone/data','thoughput.csv'), 'a') as file:
             writerobj = writer(file)
             currenttime = rospy.get_rostime()
             if len(self.cycletime) != 0:
@@ -766,7 +772,7 @@ class robot_task(Solution_module):
         
 
 def main():
-    sys.path.insert(0,'/home/russell/thesis_ws/src/navigation/zone_assignment')
+    #sys.path.insert(0,'/home/russell/thesis_ws/src/navigation/zone_assignment')
     rospy.init_node("robot_tasks_py") #create node
     rospy.loginfo("running robot tasks")
 

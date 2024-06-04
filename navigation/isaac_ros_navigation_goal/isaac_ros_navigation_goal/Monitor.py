@@ -10,6 +10,8 @@ from rospy_tutorials.msg import Floats
 from isaac_ros_navigation_goal.msg import stringarr
 from rospy.numpy_msg import numpy_msg
 from std_msgs.msg import Bool
+import os
+import rospkg
 
 
 class Monitoring_module(Phase2):
@@ -32,7 +34,7 @@ class Monitoring_module(Phase2):
         self.take_action = "NA"
         self.status = "NA"
         
-        self.workstation_points = pd.read_csv(r'/home/russell/thesis_ws/src/navigation/isaac_ros_navigation_goal/isaac_ros_navigation_goal/zone/Workstation_points.csv', sep=',', header=0, names=['workstation','critical_points'], encoding = 'utf-8')
+        self.workstation_points = pd.read_csv(os.path.join(rospkg.RosPack().get_path('isaac_ros_navigation_goal'), 'isaac_ros_navigation_goal/zone/data','Workstation_points.csv'), sep=',', header=0, names=['workstation','critical_points'], encoding = 'utf-8')
         self.num_WS = len(self.workstation_points)
         self.rec_loads = np.zeros((self.num_WS,self.num_WS),dtype=np.float32)
 
@@ -71,144 +73,6 @@ class Monitoring_module(Phase2):
         else:
             print("system is balanced SVp:",SVp)
             self.status = "balenced"
-    '''
-    def calc_SVp(self ,all_ws, all_tip):
-        TZLDp = 0
-        Lpz = []
-        #first calulate Lpz for every zone
-        for zone in range(0,self.num_of_zones):
-            Lpz.append(self.zone_load(all_ws[zone], all_tip))
-
-        for zprime in range(0,self.num_of_zones-1):
-            for zdprime in range(zprime+1,self.num_of_zones):
-                TZLDp += abs(Lpz[zprime] - Lpz[zdprime])
-
-        SVp = TZLDp/(sum(Lpz) * (self.num_of_zones-1))
-
-        return(SVp)
-
-    def zone_load(self, ws_in_zone, zone_tip):
-        #equations 11-14
-        #finding Lpz
-        #to find Lpz you need to find fpzij with is the load specifically in the zone
-        #print("finding Lpz")
-
-        all_fpzij = self.finding_zone_all_fpzij(ws_in_zone, zone_tip)
-
-        sum_DA_DB = 0
-
-        #finding get gpzij
-        for i in ws_in_zone:
-            for j in ws_in_zone:
-                if (i != j):
-                    gpzij = self.finding_gpzij(i,j,ws_in_zone,all_fpzij, zone_tip)
-                    
-                    index_i = self.ws_to_index(i)
-                    index_j = self.ws_to_index(j)
-                    dpzij = self.workstation_dist_mtx[index_i,index_j]
-                    DApzij = gpzij * dpzij
-
-                    fpzij = self.finding_fpzij(i,j, zone_tip)
-                    DBpzij = fpzij*dpzij
-
-                    sum_DA_DB += DApzij + DBpzij
-        
-        Lpz = (sum_DA_DB/self.Vel) + (all_fpzij*(self.tu + self.tl))
-        
-        if math.isnan(Lpz):
-            Lpz = 0
-
-        return Lpz
-
-    def finding_gpzij(self,i,j,ws_in_zone, all_fpzij, zone_tip):
-        #finding fpzki and fpzjk
-        fpzki = 0
-        fpzjk = 0
-        for k in ws_in_zone:
-            if(k!=i):
-                fpzki += self.finding_fpzij(k,i, zone_tip)
-            if(k!=j):
-                fpzjk += self.finding_fpzij(j,k, zone_tip)
-        return (fpzki*fpzjk)/all_fpzij
-
-    def finding_zone_all_fpzij(self,ws_in_zone, zone_tip):
-        all_fpzij = 1
-        for i in ws_in_zone:
-            for j in ws_in_zone:
-                if(i != j):
-                    all_fpzij += self.finding_fpzij(i,j, zone_tip)
-        return all_fpzij
-    
-    def finding_fpzij(self,i,j, zone_tip):
-        #If i is a tip workstation, then fpzij includes
-        #not only fij (which is the flow originating from i and going to j),
-        # - but also the flow that originates from workstations in other zones,
-        #   passes i, and arrives at j
-        # - and the flow that originates from workstations in other zones, passes i, passes j, and arrives at workstations
-        #   in other zones.
-        # i and j are in the form 'ws1'
-
-
-        #is i a tip workstation?
-        is_tip = False
-        #tip_ws = zone_tip
-        for x in range(0,self.num_of_zones):
-            x_list = zone_tip[x][0]
-            if (i in x_list):
-                is_tip = True
-                break
-
-        i_index = self.ws_to_index(i)
-        j_index = self.ws_to_index(j)
-
-        crit_i = self.ws_crit_point(i)
-        crit_j = self.ws_crit_point(j)
-
-        #assumed that i and j are already in the same zone
-        fpzij = 0
-
-        if is_tip:
-            #case for when i is a tip ws and j is in the zone 
-            #need to calculate the flow
-
-            #this could be done better
-            for wsi_index in range(0,len(self.workstation_points)):
-                wsi = self.index_to_ws(wsi_index)
-
-                for wsj_index in range(0,len(self.workstation_points)):
-                    wsj = self.index_to_ws(wsj_index)
-
-                    path = self.all_paths_mtx[wsi + ',' + wsj]
-                    if (path != 0):
-                        if (path[0] != crit_j):
-                            if (crit_i in path and crit_j in path):
-                                fpzij += self.rec_loads[wsi_index,wsj_index]
-        else:
-            fpzij = self.rec_loads[i_index,j_index]
-
-        return fpzij
-
-    def all_path(self):
-        #calculate the path of all workstations that share a load
-        #self.all_paths_mtx = np.zeros((len(self.ws_loads[0,:]),len(self.ws_loads[:,0])))
-        #all_adj_matrix = [[] for i in range(self.nz)] 2D list
-        #this makes a dictionary of paths that share a load between them
-        self.all_paths_mtx = {}
-        
-        for i in range(0,len(self.workstation_points)):
-            i_ws = self.index_to_ws(i)
-            for j in range(0,len(self.workstation_points)):
-                j_ws = self.index_to_ws(j)
-                if (self.rec_loads[i,j] == 0):
-                    continue
-                    #self.all_paths_mtx[i_ws +','+ j_ws] = 0
-                else:
-                    crit_ws_i = self.ws_crit_point(self.index_to_ws(i))
-                    crit_ws_j = self.ws_crit_point(self.index_to_ws(j))
-                    path,dist = self.phase1.shortest_dist(crit_ws_i, crit_ws_j, self.adj_matrix)
-                    #path = np.array(path)
-                    self.all_paths_mtx[i_ws +','+ j_ws] = path
-    '''
 
     def index_to_ws(self,i):
         ws_list = self.workstation_points.loc[:,'workstation'].to_list()

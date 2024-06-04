@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 from .Phase_1 import Phase1
 from .Phase_2 import Phase2
 from itertools import combinations 
+import os
+import rospkg
 
 #setting up transfer stations and assigning remaining critical segments
 class Phase3(Phase2):
@@ -18,15 +20,10 @@ class Phase3(Phase2):
         self.phase1 = Phase1() #want to use the shortest path function
         self.phase1.create_map()
 
-        self.critical_points = pd.read_csv(r'/home/russell/thesis_ws/src/navigation/isaac_ros_navigation_goal/isaac_ros_navigation_goal/zone/Critical_Points.csv', sep=',', header=0, names=['x','y'], encoding = 'utf-8')
-        self.workstation_loc = pd.read_csv(r'/home/russell/thesis_ws/src/navigation/isaac_ros_navigation_goal/isaac_ros_navigation_goal/zone/Workstation_Loaction.csv', sep=',', header=0, names=['x','y'], encoding = 'utf-8')
-        self.workstation_points = pd.read_csv(r'/home/russell/thesis_ws/src/navigation/isaac_ros_navigation_goal/isaac_ros_navigation_goal/zone/Workstation_points.csv', sep=',', header=0, names=['workstation','critical_points'], encoding = 'utf-8')
-        workstation_dist_mtx = pd.read_csv(r'/home/russell/thesis_ws/src/navigation/isaac_ros_navigation_goal/isaac_ros_navigation_goal/zone/data/WS_dist_mtx.csv', sep=',')
-        #self.all_adj_matrix = []
-        #for x in range(0, len(zone_ws)):
-            #filepath = 'data/adj'+str(x)+'.csv'
-            #mtx = pd.read_csv(filepath, sep=',')
-            #self.all_adj_matrix.append(mtx.to_numpy())
+        self.critical_points = pd.read_csv(os.path.join(rospkg.RosPack().get_path('isaac_ros_navigation_goal'), 'isaac_ros_navigation_goal/zone/data','Critical_Points.csv'), sep=',', header=0, names=['x','y'], encoding = 'utf-8')
+        self.workstation_loc = pd.read_csv(os.path.join(rospkg.RosPack().get_path('isaac_ros_navigation_goal'), 'isaac_ros_navigation_goal/zone/data','Workstation_Loaction.csv'), sep=',', header=0, names=['x','y'], encoding = 'utf-8')
+        self.workstation_points = pd.read_csv(os.path.join(rospkg.RosPack().get_path('isaac_ros_navigation_goal'), 'isaac_ros_navigation_goal/zone/data','Workstation_points.csv'), sep=',', header=0, names=['workstation','critical_points'], encoding = 'utf-8')
+        workstation_dist_mtx = pd.read_csv(os.path.join(rospkg.RosPack().get_path('isaac_ros_navigation_goal'), 'isaac_ros_navigation_goal/zone/data','WS_dist_mtx.csv'), sep=',')
 
         self.all_adj_matrix = copy.deepcopy(allAdjMatrix)
 
@@ -84,8 +81,6 @@ class Phase3(Phase2):
 
                 #this matrix contains all points in alpha and beta zone as well as points that are available to take
                 #testing
-                #df_union = pd.DataFrame(union_mtx)
-                #df_union.to_csv('/home/russell/thesis_ws/src/navigation/isaac_ros_navigation_goal/isaac_ros_navigation_goal/zone/data/union_mtx.csv', header=self.all_points)
 
                 for wsa in TW[0]:
                     wsa_crit = self.ws_crit_point(wsa)
@@ -337,23 +332,15 @@ class Phase3(Phase2):
                             matrix[pt_index,next_pt_index] = 0
                             matrix[next_pt_index,pt_index] = 0
                             self.all_adj_matrix[zone] = copy.deepcopy(matrix)
-                                    #testing
-                            #df_adj1 = pd.DataFrame(self.all_adj_matrix[0])
-                            #df_adj2 = pd.DataFrame(self.all_adj_matrix[1])
-                            #df_adj3 = pd.DataFrame(self.all_adj_matrix[2])
-                        
-                            #df_adj1.to_csv('data/adj0.csv', header=self.all_points, index=self.all_points)
-                            #df_adj2.to_csv('data/adj1.csv', header=self.all_points, index=self.all_points)
-                            #df_adj3.to_csv('data/adj2.csv', header=self.all_points, index=self.all_points)
 
         #testing
         #df_adj1 = pd.DataFrame(self.all_adj_matrix[0])
         #df_adj2 = pd.DataFrame(self.all_adj_matrix[1])
         #df_adj3 = pd.DataFrame(self.all_adj_matrix[2])
     
-        #df_adj1.to_csv('/home/russell/thesis_ws/src/navigation/isaac_ros_navigation_goal/isaac_ros_navigation_goal/zone/data/adj0.csv', header=self.all_points, index=self.all_points)
-        #df_adj2.to_csv('/home/russell/thesis_ws/src/navigation/isaac_ros_navigation_goal/isaac_ros_navigation_goal/zone/data/adj1.csv', header=self.all_points, index=self.all_points)
-        #df_adj3.to_csv('/home/russell/thesis_ws/src/navigation/isaac_ros_navigation_goal/isaac_ros_navigation_goal/zone/data/adj2.csv', header=self.all_points, index=self.all_points)
+        #df_adj1.to_csv(os.path.join(rospkg.RosPack().get_path('isaac_ros_navigation_goal'), 'isaac_ros_navigation_goal/zone/data','adj0.csv'), header=self.all_points, index=self.all_points)
+        #df_adj2.to_csv(os.path.join(rospkg.RosPack().get_path('isaac_ros_navigation_goal'), 'isaac_ros_navigation_goal/zone/data','adj1.csv'), header=self.all_points, index=self.all_points)
+        #df_adj3.to_csv(os.path.join(rospkg.RosPack().get_path('isaac_ros_navigation_goal'), 'isaac_ros_navigation_goal/zone/data','adj2.csv'), header=self.all_points, index=self.all_points)
 
         '''
         #ploting 

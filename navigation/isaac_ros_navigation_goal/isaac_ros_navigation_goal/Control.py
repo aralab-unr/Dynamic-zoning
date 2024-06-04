@@ -21,9 +21,6 @@ class Contol_module():
         #tells monitoring module to send status
         self.send_status_pub = rospy.Publisher("/send_status", Bool, queue_size = 10)
 
-        #bool to get status from monitor module
-        #self.monitor_status
-
         #define the time interval for IM and NV schemes
         self.t1 = 5
         self.t2 = 10

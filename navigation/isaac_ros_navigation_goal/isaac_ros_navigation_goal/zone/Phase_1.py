@@ -5,18 +5,22 @@ from collections import defaultdict
 import math
 import heapq
 import copy
+import os
+import rospkg
 
 class Phase1:
       def __init__(self):
             self.read_csv()
 
       def read_csv(self):
-            variables_set = pd.read_csv(r'/home/russell/thesis_ws/src/navigation/isaac_ros_navigation_goal/isaac_ros_navigation_goal/zone/Variables_of_Zone_Warehouse_Phase1.csv', sep=',', header=0, names=['value'], encoding = 'utf-8')
-            self.critical_points = pd.read_csv(r'/home/russell/thesis_ws/src/navigation/isaac_ros_navigation_goal/isaac_ros_navigation_goal/zone/Critical_Points.csv', sep=',', header=0, names=['x','y'], encoding = 'utf-8')
-            self.workstation_loc = pd.read_csv(r'/home/russell/thesis_ws/src/navigation/isaac_ros_navigation_goal/isaac_ros_navigation_goal/zone/Workstation_Loaction.csv', sep=',', header=0, names=['x','y'], encoding = 'utf-8')
-            self.adjacency_Mtx_pd = pd.read_csv(r'/home/russell/thesis_ws/src/navigation/isaac_ros_navigation_goal/isaac_ros_navigation_goal/zone/Adjacency_matrix.csv', sep=',', header=0, names=['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z','a','b','c','d','e','f','g','h','i'], encoding = 'utf-8')
-            self.workstation_points = pd.read_csv(r'/home/russell/thesis_ws/src/navigation/isaac_ros_navigation_goal/isaac_ros_navigation_goal/zone/Workstation_points.csv', sep=',', header=0, names=['workstation','critical_points'], encoding = 'utf-8')
-            self.workstation_loads = pd.read_csv(r'/home/russell/thesis_ws/src/navigation/isaac_ros_navigation_goal/isaac_ros_navigation_goal/zone/Workstation_Loads.csv', sep=',', header=0, names=['WS1','WS2','WS3','WS4','WS5','WS6','WS7','WS8','WS9','WS10','WS11'], encoding = 'utf-8')
+            #var = os.path.join(rospkg.RosPack().get_path('isaac_ros_navigation_goal'), 'isaac_ros_navigation_goal/zone', 'Variables_of_Zone_Warehouse_Phase1.csv')
+            #print(var)
+            variables_set = pd.read_csv(os.path.join(rospkg.RosPack().get_path('isaac_ros_navigation_goal'), 'isaac_ros_navigation_goal/zone/data', 'Variables_of_Zone_Warehouse_Phase1.csv'), sep=',', header=0, names=['value'], encoding = 'utf-8')
+            self.critical_points = pd.read_csv(os.path.join(rospkg.RosPack().get_path('isaac_ros_navigation_goal'), 'isaac_ros_navigation_goal/zone/data','Critical_Points.csv'), sep=',', header=0, names=['x','y'], encoding = 'utf-8')
+            self.workstation_loc = pd.read_csv(os.path.join(rospkg.RosPack().get_path('isaac_ros_navigation_goal'), 'isaac_ros_navigation_goal/zone/data','Workstation_Loaction.csv'), sep=',', header=0, names=['x','y'], encoding = 'utf-8')
+            self.adjacency_Mtx_pd = pd.read_csv(os.path.join(rospkg.RosPack().get_path('isaac_ros_navigation_goal'), 'isaac_ros_navigation_goal/zone/data','Adjacency_matrix.csv'), sep=',', header=0, names=['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z','a','b','c','d','e','f','g','h','i'], encoding = 'utf-8')
+            self.workstation_points = pd.read_csv(os.path.join(rospkg.RosPack().get_path('isaac_ros_navigation_goal'), 'isaac_ros_navigation_goal/zone/data','Workstation_points.csv'), sep=',', header=0, names=['workstation','critical_points'], encoding = 'utf-8')
+            self.workstation_loads = pd.read_csv(os.path.join(rospkg.RosPack().get_path('isaac_ros_navigation_goal'), 'isaac_ros_navigation_goal/zone/data','Workstation_Loads.csv'), sep=',', header=0, names=['WS1','WS2','WS3','WS4','WS5','WS6','WS7','WS8','WS9','WS10','WS11'], encoding = 'utf-8')
             
             values = variables_set['value']
 

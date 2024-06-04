@@ -13,17 +13,16 @@ from itertools import combinations
 from queue import Queue
 from zone.part import part
 import multiprocessing
+import os
+import rospkg
 
 class Solution_module():
     
     def __init__(self):
-        #self.sys_active = active_check #bool
-        #self.action = action
-        #self.num_zones = len(self.list_posQ)
         self.num_zones = 0
 
-        self.workstation_points = pd.read_csv(r'/home/russell/thesis_ws/src/navigation/isaac_ros_navigation_goal/isaac_ros_navigation_goal/zone/Workstation_points.csv', sep=',', header=0, names=['workstation','critical_points'], encoding = 'utf-8')
-        self.workstation_loc = pd.read_csv(r'/home/russell/thesis_ws/src/navigation/isaac_ros_navigation_goal/isaac_ros_navigation_goal/zone/Workstation_Loaction.csv', sep=',', header=0, names=['x','y'], encoding = 'utf-8')
+        self.workstation_points = pd.read_csv(os.path.join(rospkg.RosPack().get_path('isaac_ros_navigation_goal'), 'isaac_ros_navigation_goal/zone/data','Workstation_points.csv'), sep=',', header=0, names=['workstation','critical_points'], encoding = 'utf-8')
+        self.workstation_loc = pd.read_csv(os.path.join(rospkg.RosPack().get_path('isaac_ros_navigation_goal'), 'isaac_ros_navigation_goal/zone/data','Workstation_Loaction.csv'), sep=',', header=0, names=['x','y'], encoding = 'utf-8')
 
     def load_sharing(self, list_partQ, list_posQ, current_ws):
         #look at parts that are waiting for the robot to pickup
