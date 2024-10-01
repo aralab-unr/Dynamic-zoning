@@ -1,0 +1,18 @@
+zone1:
+  ID: 2
+  Type: A
+  count: 3
+zone2:
+  ID: 6
+  Type: B
+  count: 1
+  zone:
+  - h
+  - j
+  - k
+2:
+- WS2
+- WS9
+6:
+- WS8
+- WS10

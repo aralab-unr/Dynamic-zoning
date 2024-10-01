@@ -1,0 +1,48 @@
+<launch>
+	<param name="robot_vel" type="double" value="236.2" />
+	<param name="num_robots" type="int" value="3" />
+	<param name="range" type="double" value="328.0" />
+	<group ns="carter1">
+		<rosparam param="starting_stations">['WS9', 'WS14', 'WS6', 'WS10'] </rosparam>
+		<rosparam param="starting_segments">[['q', 'r', 'Q', 'X', 'W', 'v'], ['q', 'P', 'N', 'n'], ['r', 'q']] </rosparam>
+		<param name = "initial_station" type="string" value="WS11"/>
+		<param name="map_yaml_path" value ="home/russell/thesis_ws/src/thesis_sim/ddzoning/assets/carter_LEfloor_navigation.yaml" />
+        	<param name="iteration_count" type="int" value="50000" />
+        	<param name="goal_generator_type" type="str" value="GoalReader" />
+        	<param name="action_server_name" type="str" value="move_base" />
+        	<param name="obstacle_search_distance_in_meters" type="double" value="0.2" />
+        	<param name="goal_text_file_path" value="home/russell/thesis_ws/src/thesis_sim/ddzoning/assets/goals1.txt" />
+        	<rosparam param="initial_pose">[22.0, 3.0, 0, 0, 0, 1, 0] </rosparam>
+        	<node name="robot_node" pkg="ddzoning" type="robot.py" output="screen"/>
+        	<node name="set_navigation_goal" pkg="ddzoning" type="set_goal.py" output="screen"/>
+	</group>
+	<group ns="carter2">
+		<rosparam param="starting_stations">['WS2', 'WS4', 'WS1', 'WS3', 'WS7'] </rosparam>
+		<rosparam param="starting_segments">[['j', 'B', 'C', 'D', 'l'], ['l', 'D', 'C', 'B', 'i'], ['i', 'A', 'E', 'k'], ['k', 'F', 'G', 'J', 'O', 'o']] </rosparam>
+		<param name = "initial_station" type="string" value="WS1"/>
+	        <param name="map_yaml_path" value="home/russell/thesis_ws/src/thesis_sim/ddzoning/assets/carter_LEfloor_navigation.yaml" />
+		<param name="iteration_count" type="int" value="50000" />
+		<param name="goal_generator_type" type="str" value="GoalReader" />
+		<param name="action_server_name" type="str" value="move_base" />
+		<param name="obstacle_search_distance_in_meters" type="double" value="0.2" />
+		<param name="goal_text_file_path" value="home/russell/thesis_ws/src/thesis_sim/ddzoning/assets/goals2.txt" />
+		<rosparam param="initial_pose">[9.0, 84.0, 0, 0, 0, 1, 0] </rosparam>
+		<node name="robot_node" pkg="ddzoning" type="robot.py" output="screen"/>
+		<node name="set_navigation_goal" pkg="ddzoning" type="set_goal.py" output="screen"/>
+	</group>
+	<group ns="carter3">
+		<rosparam param="starting_stations">['WS5', 'WS11', 'WS16', 'WS12', 'WS13', 'WS8', 'WS17', 'WS18', 'WS15'] </rosparam>
+		<rosparam param="starting_segments">[['s', 'Y', 'Z', 'x'], ['x', 'Z', 't'], ['t', 'U', 'V', 'u'], ['m', 'L', 'p'], ['m', 'L', 'p', 'R', 'S', 'T', 's'], ['u', 'a', 'y'], ['y', 'a', 'b', 'z'], ['z', 'b', 'c', 'w']] </rosparam>
+		<param name = "initial_station" type="string" value="WS18"/>
+	        <param name="map_yaml_path" value="home/russell/thesis_ws/src/thesis_sim/ddzoning/assets/carter_LEfloor_navigation.yaml" />
+		<param name="iteration_count" type="int" value="50000" />
+		<param name="goal_generator_type" type="str" value="GoalReader" />
+		<param name="action_server_name" type="str" value="move_base" />
+		<param name="obstacle_search_distance_in_meters" type="double" value="0.2" />
+		<param name="goal_text_file_path" value="home/russell/thesis_ws/src/thesis_sim/nvidia_sim/assets/goals3.txt" />
+		<rosparam param="initial_pose">[70.0, 3.0, 0, 0, 0, 1, 0] </rosparam>
+		<node name="robot_node" pkg="ddzoning" type="robot.py" output="screen"/>
+		<node name="set_navigation_goal" pkg="ddzoning" type="set_goal.py" output="screen"/>
+	</group>
+	<node name="map_node" pkg="ddzoning" type="map.py" output="screen"/>
+</launch>
