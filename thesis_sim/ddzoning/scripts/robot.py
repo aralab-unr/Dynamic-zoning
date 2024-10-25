@@ -33,7 +33,6 @@ class Robot(Zone_func):
         #self.vel = 3.937 #(1.2 meters / sec)
         self.num_robot = rospy.get_param('/num_robots') #total number of robots in the system
         self.range = rospy.get_param('/range') #communication range of the robot
-        self.avgc_interval = 60
         self.zoneID = int(''.join(filter(lambda i: i.isdigit(), rospy.get_namespace())))
 
         #inheit the zone support class
@@ -94,7 +93,7 @@ class Robot(Zone_func):
         self.position = np.array(self.position) #change position to a numpy array
         self.robot_start_time = rospy.get_rostime()
         self.recorded_load = np.zeros((self.numws,self.numws),dtype=np.float32)
-        self.window = 10 #defines how long a data point stays recorded (min)
+        self.window = 20 #defines how long a data point stays recorded (min)
         self.rec_pttimes = {} #keeps track of how long a pt has been recorded 
         for row in range(self.numws):
             for col in range(self.numws):
@@ -103,7 +102,7 @@ class Robot(Zone_func):
         self.robot_all_zone = []
         self.alarm_time = 15 #time till robot declares out of balence (min)
         self.avgc_interval = 120 #time till average consensus (secs)
-        self.bal_tolerance = 10 #50 #balence tolerance 
+        self.bal_tolerance = 18  #balence tolerance (min)
         self.robot_avg = 0 #calculated robot avg load
         self.avgc_flag = False #flag to signal to other neighbors that avg has started
         self.imbalence = False #flag to signal that a zone been out of balence for too long
@@ -126,6 +125,7 @@ class Robot(Zone_func):
         self.total_dist = 0
         self.visited_ws = []
         self.record_zone()
+        self.robot_travel_dist = 0
 
     #publishers
     def pub_pos(self):
@@ -169,6 +169,11 @@ class Robot(Zone_func):
         current_time = rospy.get_rostime()
         part_msg.age += current_time.secs - part_msg.timestamp
 
+        #for test2 no rolling window
+        row = self.ws_to_index(part_msg.goal1)
+        col = self.ws_to_index(part_msg.goal2)
+        self.recorded_load[row, col] -= 1
+
         self.robotpartpub.publish(part_msg) #send part to WS
 
     def pub_numNi(self):
@@ -203,7 +208,9 @@ class Robot(Zone_func):
     def pub_robot_stop(self):
         msg = Bool()
         msg.data = not self.DD_done
-        self.stop_robot_pub.publish(msg)
+        for _ in range(5):
+            self.stop_robot_pub.publish(msg)
+            rospy.sleep(0.25)
 
     #callbacks
     def update_neighbors(self, data):
@@ -248,8 +255,8 @@ class Robot(Zone_func):
         row = self.ws_to_index(part_msg.goal1)
         col = self.ws_to_index(part_msg.goal2)
         self.recorded_load[row, col] += 1
-        currentTime = rospy.get_rostime()
-        self.rec_pttimes[row, col].append(currentTime.secs) #recored time that the part has been in queue to pick up
+        #currentTime = rospy.get_rostime()
+        #self.rec_pttimes[row, col].append(currentTime.secs) #recored time that the part has been in queue to pick up
 
     def update_avgc_flag(self, data):
         #this flag is set when a neighbor ro robot signals that its time to do average consensus
@@ -298,7 +305,7 @@ class Robot(Zone_func):
         rospy.sleep(0.075) #give time for map to recieve new zone
 
         #send confirm
-        print("send confirm bew zone")
+        print("send confirm new zone")
         msg = Bool()
         msg.data = True
         self.zone_confirm.publish(msg)
@@ -308,9 +315,9 @@ class Robot(Zone_func):
             while(not self.DD_done): #to avoid potential issues with a part is getting added when DD is active
                 continue
             if (data.data is True):
-                if (self.robot_q): #check if dictionary is empty
+                #print(rospy.get_namespace(),"len of q:",len(self.robot_q),"\nis currpart none:", self.currentpart is None)
+                if (self.robot_q or (self.currentpart is not None)): #check if dictionary is empty
                     
-                    #prevpos = 'WS' + self.carter1_pos
                     print(rospy.get_namespace(),"num in queue",len(self.robot_q))
                     #*******to drop off part**********
                     if (self.currentpart is not None):
@@ -320,15 +327,14 @@ class Robot(Zone_func):
                             self.currentpart.reload = False #for reload purposes (in this case we want the parts to continue on)
                             self.pub_part(self.currentpart)
                             self.rank_parts() #rerank parts
-                            self.carter1_part = None
-                            #self.update_part_status(self.carter1D)
+                            self.currentpart = None
 
                     #*******to go to drop off location*******
                     if (self.pickup and not self.dropoff): #go to drop off location
                         print(rospy.get_namespace(),"going to drop off")
                         self.robot_pos = self.currentpart.goal2 #record the drop off position as the current position
                         self.pickup = False #switch sign to get ready to pick-up again
-                        self.dropoff = True #signal to dropoff part
+                        self.dropoff = True #signal to pickup part
                         prevpos = copy.deepcopy(self.currentws)
                         self.currentws = copy.deepcopy(self.currentpart.goal2)
                         rospy.sleep(2.5) #time to pick up a part
@@ -351,7 +357,7 @@ class Robot(Zone_func):
                     #record the next position in file
                     path, dist = self.shortest_dist(self.ws_crit_point(prevpos), self.ws_crit_point(self.currentws), self.adjacency_Mtx)
                     print(rospy.get_namespace(), "dist from",self.ws_crit_point(prevpos), "to", self.ws_crit_point(self.currentws),":", dist)
-                    self.record_robot_pos(self.currentws, self.zoneID, dist)
+                    self.robot_travel_dist += dist
                     newPosition = self.WS_position(self.robot_pos) #create position
                     goal_msg = MoveBaseGoal() #create a goal msg
                     goal_msg.target_pose.header.frame_id = rospy.get_param("frame_id", "map") #add parameters
@@ -510,7 +516,7 @@ class Robot(Zone_func):
         if sendconfirm:
             msg = Bool()
             msg.data = True
-            for _ in range(5):
+            for _ in range(7):
                 self.confrim_newts.publish(msg)
                 rospy.sleep(0.075)
 
@@ -661,46 +667,97 @@ class Robot(Zone_func):
         #this functions monitors the current load of the robot
         #it also publishs out of tolerance if load is too far from the average
         #print("monitoring load")
-        s1 = rospy.get_rostime() #start timer
-        s2 = rospy.get_rostime() #start timer
+        s1 = rospy.get_rostime() #timer keeping track of when to start DDZ
+        s2 = rospy.get_rostime() #timer to keep track how how long system has reamined balenced or im balenced
+        
+        balence_status = True #flag to signal if system is imbalence
+
+        status = True #flag to indicate whether robot is out of tolerance
+        previous_status = True
+
         while not rospy.is_shutdown():
             curr_time = rospy.get_rostime() #get current time
-            if np.sum(self.recorded_load) > 0 and (curr_time.secs - s2.secs) > 30:
-                #get all zone which includes transfer stations 
-                self.prior_load = copy.deepcopy(self.robot_load)            
-                self.robot_load = self.zone_load(self.robot_all_zone)
-                s2 = rospy.get_rostime() #start timer
-                print(rospy.get_namespace(),"load:",self.robot_load)
-                self.record_error_history()
+
+            #get the current status
+            #get all zone which includes transfer stations 
+            self.prior_load = copy.deepcopy(self.robot_load)            
+            self.robot_load = self.zone_load(self.robot_all_zone)
+            #s2 = rospy.get_rostime() #restart timer
+            print(rospy.get_namespace(),"load:",self.robot_load)
+            self.record_error_history()
             
+            #determine if system is out of tolerance
+            previous_status = copy.deepcopy(status)
+            status = ((self.robot_load < (self.robot_avg + self.bal_tolerance)) and (self.robot_load > (self.robot_avg - self.bal_tolerance)))
+            #true if in tol
+            #false if out of tol
+
+            #get the current time
+            timer = curr_time.secs - s2.secs
+
             #if the current load is out of tolerence start the timer or a imbalence has been detected
             #do not reset timer if aveage consensus is active
             detect_imbalence = self.get_imabalence()
-            if ((self.robot_load > (self.robot_avg + self.bal_tolerance)) or (self.robot_load < (self.robot_avg - self.bal_tolerance)) or detect_imbalence):
+            if (not balence_status or detect_imbalence):
                 if (((curr_time.secs - s1.secs) > (self.alarm_time*60)) or detect_imbalence):
-                    
-                    self.imbalence = True
+                    print(rospy.get_namespace(),"imbalence detected")
+
+                    #designate the first one to start DDZ as leader
+                    if not detect_imbalence:
+                        self.leader_flag = 1
+                    else:
+                        self.leader_flag = -1
+
+                    self.imbalence = True #flag telling neighbors that a imabalence has been detected
 
                     #do not go into DD zoning unless this robot is connected to neighbors
-                    while(len(self.neigh_pos) == 0):
+                    while( not self.neigh_pos):
                         self.DD_done = True 
+                        #self.pub_robot_stop()
                         #self.vel = 8.5
                     #self.vel = 0
                     self.DD_done = False #once DD_done turns false then robots stops moving
+                    #self.pub_robot_stop()
                     
                     #reset recorded times
-                    self.rec_pttimes = {} #keeps track of how long a pt has been recorded 
-                    for row in range(self.numws):
-                        for col in range(self.numws):
-                            self.rec_pttimes[row,col] = []
+                    #delete history
+                    #print("deleting history")
+                    #print("deleting times")
+                    #self.rec_pttimes = {} #keeps track of how long a pt has been recorded 
+                    #for row in range(self.numws):
+                        #for col in range(self.numws):
+                            #self.rec_pttimes[row,col] = []
+                    
+                    #print("reseting recorded load")
+                    #self.recorded_load = np.zeros((self.numws,self.numws), dtype=np.float32)
+                    #rq = copy.deepcopy(self.robot_q)
+                    #for part in rq.values():
+                        #print(rospy.get_namespace(),"adding part:",part.partID)
+                        #row = self.ws_to_index(part.goal1)
+                        #col = self.ws_to_index(part.goal2)
+                        #self.recorded_load[row, col] += 1
 
+                    print("going into DD zoning")
                     self.DD_zoning() #start zone repair
+                    s1 = rospy.get_rostime() #reset DDZ timer
+            
+            if(status and previous_status): #if system has remain in balence
+                #is system has remained balenced for 5min reset DDZ timer and declare system balenced
+                if timer/60 > 6.5:
+                    balence_status = True
                     s1 = rospy.get_rostime()
-            elif(not self.avgc_flag): #do not reset timer if aveage consensus is active
-                #reset timer when zone load is back within tolerance              
-                s1 = rospy.get_rostime() #reset timer
+            
+            elif(status != previous_status): #balence change detected
+                #reset timer
+                s2 = rospy.get_rostime()
 
-            rospy.sleep(0.1)
+            elif(not status and not previous_status):
+                if timer/60 > 6.5:
+                    balence_status = False
+
+            print(rospy.get_namespace(), "balsts, status, prevssts", balence_status, status, previous_status)
+
+            rospy.sleep(30)
     
     def zone_load(self, ws_in_zone):
         #equations 11-14
@@ -731,8 +788,8 @@ class Robot(Zone_func):
 
         #print(rospy.get_namespace())
         #print(ws_in_zone)
-        #print("sum_DA_DB",sum_DA_DB)
-        #print("all_fpzij",all_fpzij)
+        #print(rospy.get_namespace(),"sum_DA_DB",sum_DA_DB)
+        #print(rospy.get_namespace(),"all_fpzij",all_fpzij)
 
         Lpz = (sum_DA_DB/self.V) + (all_fpzij*(self.tu + self.tl))
         self.fpzijD.clear()
@@ -751,7 +808,11 @@ class Robot(Zone_func):
                 fpzki += self.fpzijD[k + ',' + i]
             if(k!=j):
                 fpzjk += self.fpzijD[j + ',' + k]
-        return (fpzki*fpzjk)/all_fpzij
+
+        if all_fpzij == 0:
+            return 0
+        else:
+            return (fpzki*fpzjk)/all_fpzij
 
     def finding_fpzij(self,i,j):
         #If i is a tip workstation, then fpzij includes
@@ -770,7 +831,7 @@ class Robot(Zone_func):
         return fpzij
 
     def finding_zone_all_fpzij(self,ws_in_zone):
-        all_fpzij = 1
+        all_fpzij = 0
         for i in ws_in_zone:
             for j in ws_in_zone:
         #for i in len(self.ws_loads[robot]): # i is index
@@ -840,7 +901,10 @@ class Robot(Zone_func):
                     start_time = rospy.get_rostime()
 
             print("******starting avg consensus********")
-            self.robot_avg = self.zone_load(self.robot_all_zone)# copy.deepcopy(self.robot_load) #set initial measurement
+            priori_load = copy.deepcopy(self.robot_avg)
+            self.robot_load = self.zone_load(self.robot_all_zone)
+            self.robot_avg = copy.deepcopy(self.robot_load) #set initial measurement
+            self.robot_avg += 0.1  #small constant added for when load is zero
             self.avgc_flag = True
             self.pub_avgc_flag() #publish flag to other neighbors to start avg consensus
 
@@ -877,6 +941,10 @@ class Robot(Zone_func):
                 #self.vel = 0
             self.avgc_flag = False #set flag so that it cant loop again
 
+            #case for when the robot had no neighbors (rarely happens)
+            if self.robot_load == self.robot_avg:
+                self.robot_avg = copy.deepcopy(priori_load)
+
     def metropolisweights(self, NiList):
         #nodeNeighbor=NiList[nodeIndex] NiList is a list of neighbors
         nodedegree=len(NiList)
@@ -901,7 +969,6 @@ class Robot(Zone_func):
 
     #decentrialized dynamic zoning
     def DD_zoning(self):
-        rospy.sleep(random.uniform(0,1)*10)
         print(rospy.get_namespace(), "starting DD zoning")
         self.DD_done = False #once DD_done is false the robot stop moveing
         self.pub_robot_stop()
@@ -916,31 +983,36 @@ class Robot(Zone_func):
         
         error = []
         self.exit_ready = -1
+        #SA parameters
+        itcount = 0
+        Tf = 0.3
+        Ti = 4.5
+        k = self.max_it
+
         
         #which ever robot gets here first will be declared the leader
         #if self.get_lead_availability():
             #self.leader_flag = 1 #1 signifies that robot is the leader
             #for neigh in self.neigh_pos.keys():
         
-        if self.zoneID == 1: #designate robot1 as the initial leader
-            self.leader_flag = 1
-            for neigh in self.neigh_pos.keys():
-                self.send_neigh_availability(-1, neigh) #-1 signifies follower
-        else:
-            self.leader_flag = -1
+        #if self.zoneID == 1: #designate robot1 as the initial leader
+            #self.leader_flag = 1
+            #for neigh in self.neigh_pos.keys():
+                #self.send_neigh_availability(-1, neigh) #-1 signifies follower
+        #else:
+            #self.leader_flag = -1
 
         for ep in range(1, self.max_episode+1):
             self.current_neighbors = copy.deepcopy(self.neigh_pos)
             
             print(rospy.get_namespace(),"epsisode:",ep)
 
-            neighbors = list(self.neigh_pos.keys())
-            if neighbors == []:
+            if not self.neigh_pos:
                 print(rospy.get_namespace(),"got no neighbors")
-                while(neighbors == []):
-                    neighbors = list(self.neigh_pos.keys())
+                self.DD_done = True
+                self.pub_robot_stop()
+                while(not self.neigh_pos):
                     self.DD_done = True
-                    self.pub_robot_stop()
                 self.DD_done = False
                 self.pub_robot_stop()
                     #self.vel = 8.5
@@ -991,11 +1063,12 @@ class Robot(Zone_func):
             best_neigh_load = copy.deepcopy(self.neigh_load)
             best_build_load = copy.deepcopy(self.prior_nload)
             best_build_load[rospy.get_namespace()] = copy.deepcopy(self.prior_load)
-            best_error = copy.deepcopy(self.calc_error())
+            best_error = copy.deepcopy(self.calc_stddev())
             starterror = copy.deepcopy(best_error)#for debuging
 
             for it in range(1,self.max_it+1):
                 print(rospy.get_namespace(),"iteration:",it)
+                itcount += 1
                 #get current neighbors zone design and create adj matrixs
                 #//////
                 #print("updated neighbor zone")
@@ -1044,7 +1117,7 @@ class Robot(Zone_func):
                 old_prior_load = copy.deepcopy(self.prior_nload) #for recording purposes
                 old_prior_load[rospy.get_namespace()] = self.prior_load
 
-                curr_error = self.calc_error() #get the error with the current zone design
+                curr_error = self.calc_stddev() #get the error with the current zone design
 
                 if i_load >= j_load:
                     #roboti i is giving
@@ -1078,6 +1151,11 @@ class Robot(Zone_func):
                     print("continuing")
                     continue
 
+                if zonews_c == zonews:
+                    print("couldn't exchange a tipws")
+                    print("continuing")
+                    continue
+
                 #reload parts in each zone
                 #print("load parts")
                 self.zone_stations = copy.deepcopy(zonews_c[roboti_index])
@@ -1107,22 +1185,63 @@ class Robot(Zone_func):
                 
                 self.update_neigh_loads() #also updates neighbor self.robot_load
                 j_load_c = copy.deepcopy(self.neigh_load[robotj])
-                #debugging
+                #check
                 if j_load_c != self.neigh_load[robotj]:
-                    print("!!!!!!!!!!!!!!!inconsitancy with jload!!!!!!!!!!")
-                    while True:
-                        print(j_load_c)
-                        print(self.neigh_load[robotj])
-                        rospy.sleep(1)
+                    print("**inconsitancy with jload**")
+                    print("somtimes this happens when zones are not updated fast enough before reload")
+                    print("could also be a division by zero error when calculating load")
+                    print("**returning to orginal**")
+
+                    self.zone_stations = copy.deepcopy(zonews[roboti_index])
+                    self.zone_segments = copy.deepcopy(zonecs[roboti_index])
+                    self.pub_ws_assignment()
+                    rospy.sleep(0.25)
+                    self.prior_load = copy.deepcopy(self.robot_load)
+                    self.robot_load = copy.deepcopy(old_prior_load[rospy.get_namespace()]) #important that this is set before calling new_zone
+
+                    neighlist = list(self.current_neighbors.keys())
+                    starti = 0
+                    for _ in range(len(neighlist)): 
+                        for neighi in range(len(neighlist) - starti):
+                            neigh = neighlist[neighi]
+                            j_load = old_prior_load[neigh]
+                            self.new_zone(neigh, zonews, zonecs, j_load) #tell neighbor to update yaml file and to run startup() 
+                        starti += 1
+                    
+                    self.startup(1)
+
+                    self.adjust_neigh_ts()
+
+                    self.send_reload(True)
+                    self.all_reload()
+
+                    self.prior_load = copy.deepcopy(self.robot_load)
+                    self.robot_load = self.zone_load(self.robot_all_zone) #update roboti load
+                    self.update_neigh_loads() #use this to update neighbor load
+
+                    zonewsf = copy.deepcopy(zonews)
+                    zonecsf = copy.deepcopy(zonecs)
+
+                    continue
 
                 #calculate error
                 #print("calculating error")
-                new_error = self.calc_error() #get the new error with the new zone design 
+                new_error = self.calc_stddev() #get the new error with the new zone design 
                 print("new error:",new_error)
                 print("old error:", curr_error)
 
                 #accept if error is better than old error
-                p = math.log1p(15/it)*.7 #curve to accept random probabilities
+                #p = math.log1p(15/it)*.7 #curve to accept random probabilities
+
+                E = curr_error - new_error
+                temp = Ti * ((Tf/Ti)**(1/(self.max_it*2)))**itcount
+                if temp > Ti:
+                    temp = Ti
+                elif temp < Tf:
+                    temp = Tf
+
+                p = math.exp(E/(k*temp))
+
                 r = random.random()
 
                 #before accepting any sort of zone make sure the switch did not completely disconnect the zone 
@@ -1302,7 +1421,7 @@ class Robot(Zone_func):
         #self.vel = 8.5
         self.leader_flag = 0
         self.pub_robot_stop()
-        rospy.sleep(self.zoneID) #to allow time to write to zone record 
+        rospy.sleep(self.zoneID*2) #to allow time to write to zone record 
         self.record_zone()
 
     def exchange_ws(self, Atog, robotj, zonews, zonecs, all_adj_matrix):
@@ -1321,15 +1440,20 @@ class Robot(Zone_func):
                 continue
             rand_neigh = random.choice(At[tipws])
 
-            print("removing tiws", tipws)
             #remove tip from zone
-            #do not remove a tipws from a zone that only has one ws
+            #do not remove a tipws from a zone that only has less than 3 workstations in it
+            breakloop = False
             for zone in zonews:
-                if tipws in zone and len(zone) < 2:
-                    break
+                if (tipws in zone) and (len(zone) < 3):
+                    breakloop = True
+            if breakloop:
+                print("breaking loop")
+                print("cannot remove tipws:", tipws)
+                return copy.deepcopy(zonews), copy.deepcopy(zonecs), copy.deepcopy(all_adj_matrix)
+
+            print("removing tipws", tipws)
             copy_solws, copy_solcs = self.remove_tip_ws(copy.deepcopy(zonews), copy.deepcopy(zonecs), copy.deepcopy(all_adj_matrix), tipws)
             
-            print("updating adj matrix")
             #update adj matrix
             cadj = self.update_adj_matrixs(copy.deepcopy(all_adj_matrix), copy_solcs, self.adjacency_Mtx)
 
@@ -1371,14 +1495,14 @@ class Robot(Zone_func):
             if At[wsi] == []:
                 del At[wsi]
         return At.copy()
-
-    def calc_error(self):
-        sum_of_diff = abs(self.robot_load - self.robot_avg) #remeber each robot calculated average indivisually
+    
+    def calc_stddev(self):
+        sum_of_diff_squared = (self.robot_load - self.robot_avg)**2 #remeber each robot calculated average indivisually
 
         for neigh in self.current_neighbors.keys():
-            sum_of_diff += abs(self.neigh_load[neigh] - self.robot_avg)
+            sum_of_diff_squared += (self.neigh_load[neigh] - self.robot_avg)**2
         
-        return sum_of_diff/(len(self.current_neighbors)+1) #+1 for roboti
+        return (sum_of_diff_squared/(len(self.current_neighbors)+1))**(1/2) #+1 for roboti
     
     def all_reload(self):
         #tell neighbors to reload parts
@@ -1387,7 +1511,7 @@ class Robot(Zone_func):
             msg2 = Bool()
             msg2.data = True
             self.reload_parts_pub[neigh].publish(msg2)
-        rospy.sleep(3) #wait to send and recieve requeued parts
+        rospy.sleep(5.25) #wait to send and recieve requeued parts
 
     def send_reload(self, data):
         #reload parts in queue
@@ -1404,12 +1528,12 @@ class Robot(Zone_func):
             #print("preparing to send",partID)
 
             #remove part from the recored load
-            row = self.ws_to_index(currentpart.goal1)
-            col = self.ws_to_index(currentpart.goal2)
-            times = self.rec_pttimes[row,col] #retrieve times list
-            if len(times) > 0:
-                times.pop() #pop part from times list
-            self.recorded_load[row,col] -= 1
+            #row = self.ws_to_index(currentpart.goal1)
+            #col = self.ws_to_index(currentpart.goal2)
+            #times = self.rec_pttimes[row,col] #retrieve times list
+            #if len(times) > 0:
+                #times.pop() #pop part from times list
+            #self.recorded_load[row,col] -= 1
             #print("removed 1 from:", pt[0],pt[1])
         
             #send part to stations to have it requeued
@@ -1417,6 +1541,8 @@ class Robot(Zone_func):
             self.pub_part(currentpart)
             rospy.sleep(0.05)
         rospy.sleep(.25) #wait to recieve requeued parts
+        print(rospy.get_namespace())
+        print(self.recorded_load)
 
     def update_neigh_loads(self):
         #create publisher to send to neighbor zone
@@ -1479,29 +1605,30 @@ class Robot(Zone_func):
                 alllines.writerow(row)
             file.close()
 
-    def record_robot_pos(self,WS,robot,dist):
-        #WS is writen as "WS1" and robot is a number:
-        myrow = [['']]*self.num_robot
-        with open(os.path.join(rospkg.RosPack().get_path('ddzoning'), 'scripts/data','visitedWS.csv'), 'r') as file:
-            alllines = reader(file)
-            i=0
-            #for row in alllines:
-                #myrow[i] = list(row)
-                #i += 1
-            myrow = list(alllines)
-            file.close()
-
-        if myrow[robot][1] != '':
-            calcdist = float(myrow[robot][1]) + dist
-        else:
-            calcdist = dist
-        
-        myrow[robot] = [myrow[robot][0],  str(calcdist), myrow[robot][2] + ',' + WS]
-        with open(os.path.join(rospkg.RosPack().get_path('ddzoning'), 'scripts/data','visitedWS.csv'), 'w') as file:
-            alllines = writer(file)
-            for row in myrow:
-                alllines.writerow(row)
-            file.close()
+    def record_robot_pos(self):
+        while not rospy.is_shutdown():
+            #WS is writen as "WS1" and robot is a number:
+            myrow = [['']]*self.num_robot
+            with open(os.path.join(rospkg.RosPack().get_path('ddzoning'), 'scripts/data','visitedWS.csv'), 'r') as file:
+                alllines = reader(file)
+                myrow = list(alllines)
+                file.close()
+            
+            myrow[self.zoneID] = [myrow[self.zoneID][0],  str(self.robot_travel_dist)]
+            with open(os.path.join(rospkg.RosPack().get_path('ddzoning'), 'scripts/data','visitedWS.csv'), 'w') as file:
+                alllines = writer(file)
+                for row in myrow:
+                    alllines.writerow(row)
+                file.close()
+            
+            distfile = 'carter'+ str(self.zoneID) + 'dist.csv'
+            current_time = rospy.get_rostime()
+            with open(os.path.join(rospkg.RosPack().get_path('isaac_sim_zone'), 'isaac_ros_navigation_goal/zone/data', distfile), 'a') as file:
+                writerobj = writer(file)
+                writelist = [current_time.secs, self.robot_travel_dist]
+                writerobj.writerow(writelist)
+                file.close()
+            rospy.sleep(10)
 
     def record_zone(self):
         #record zone design
@@ -1511,7 +1638,10 @@ class Robot(Zone_func):
             row = list(alllines)
             file.close()
         
-        row[self.zoneID].append(self.zone_stations) 
+        time = rospy.get_rostime()
+        row[self.zoneID].append(self.zone_stations)
+        if self.zoneID == 1:
+            row[self.num_robot+1].append(time.secs) 
     
         with open(os.path.join(rospkg.RosPack().get_path('ddzoning'), 'scripts/data','zonehistory.csv'), 'w') as file:
             writerobj = writer(file)
@@ -1531,14 +1661,15 @@ def main():
     rospy.init_node("robot_node")
     name = rospy.get_namespace()
     wait = int(''.join(filter(lambda i: i.isdigit(), name)))
-    rospy.sleep(wait/10) #dont want each node operating at the same time period
-    print(os.getcwd())
+    rospy.sleep(wait) #dont want each node operating at the same time period
+    print(name, "starting up")
     st_robot = Robot()
 
     pool = concurrent.futures.ThreadPoolExecutor(max_workers=7)
     pool.submit(st_robot.pub_zone)
     pool.submit(st_robot.pub_pos)
-    pool.submit(st_robot.rolling_window)
+    #pool.submit(st_robot.rolling_window)
+    pool.submit(st_robot.record_robot_pos)
     pool.submit(st_robot.monitor)
     pool.submit(st_robot.pub_avg_load)
     pool.submit(st_robot.pub_exit)

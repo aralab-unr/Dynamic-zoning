@@ -581,7 +581,7 @@ class Zone_func():
                 
                 #numAlpha and numBeta should have at least 1
                 #step 8
-                if ((loadij[0] == 0) and (loadij[1] == 0)):
+                if ((loadij[0] == 0) and (loadij[1] == 0)) or ((loadij[0] is None) or (loadij[1] is None)):
                     Lroboti = roboti
                     Lrobotj = robotj
                 else:

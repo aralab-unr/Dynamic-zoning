@@ -73,7 +73,7 @@ class SetNavigationGoal:
         Sends the goal to the action server.
         """
         self.goal_msg = copy.deepcopy(goal)
-        print("*******going to*******")
+        print("*******",rospy.get_namespace(),"going to*******")
         print("x:", self.goal_msg.target_pose.pose.position.x)
         print("y:", self.goal_msg.target_pose.pose.position.y)
 
@@ -205,10 +205,11 @@ class SetNavigationGoal:
         return goal_generator
     
     def retrive_goal(self, data):
-        self.set_ready_flag(False)
+        self.ready_flag.data = False
         #rospy.loginfo("Recieved goal")
+        print(rospy.get_namespace(), "goalrecieved ready flag:", self.ready_flag.data)
         self.next_msg = data
-        #self.flag.publish(self.ready_flag)
+        self.flag.publish(self.ready_flag)
 
     def is_ready(self):
         return self.ready_flag.data
@@ -221,7 +222,7 @@ class SetNavigationGoal:
         while(not rospy.is_shutdown()):
             if (not self.DD_active): #do not count if DD is active
                 self.flag.publish(self.ready_flag)
-                rospy.sleep(5)
+                rospy.sleep(3) #needs to be longer than the pick up and drop off time
                 if(self.ready_flag.data is True):
                     self.true_count += 1
                 else:

@@ -3,8 +3,8 @@
 	<param name="num_robots" type="int" value="3" />
 	<param name="range" type="double" value="328.0" />
 	<group ns="carter1">
-		<rosparam param="starting_stations">['WS9', 'WS14', 'WS6', 'WS10'] </rosparam>
-		<rosparam param="starting_segments">[['q', 'r', 'Q', 'X', 'W', 'v'], ['q', 'P', 'N', 'n'], ['r', 'q']] </rosparam>
+		<rosparam param="starting_stations">['WS14', 'WS10', 'WS7', 'WS9', 'WS2'] </rosparam>
+		<rosparam param="starting_segments">[['v', 'W', 'X', 'Q', 'r'], ['r', 'Q', 'O', 'o'], ['v', 'W', 'X', 'Q', 'r', 'q'], ['o', 'O', 'J', 'G', 'F', 'j']] </rosparam>
 		<param name = "initial_station" type="string" value="WS11"/>
 		<param name="map_yaml_path" value ="home/russell/thesis_ws/src/thesis_sim/ddzoning/assets/carter_LEfloor_navigation.yaml" />
         	<param name="iteration_count" type="int" value="50000" />
@@ -17,8 +17,8 @@
         	<node name="set_navigation_goal" pkg="ddzoning" type="set_goal.py" output="screen"/>
 	</group>
 	<group ns="carter2">
-		<rosparam param="starting_stations">['WS2', 'WS4', 'WS1', 'WS3', 'WS7'] </rosparam>
-		<rosparam param="starting_segments">[['j', 'B', 'C', 'D', 'l'], ['l', 'D', 'C', 'B', 'i'], ['i', 'A', 'E', 'k'], ['k', 'F', 'G', 'J', 'O', 'o']] </rosparam>
+		<rosparam param="starting_stations">['WS1', 'WS4', 'WS5', 'WS3'] </rosparam>
+		<rosparam param="starting_segments">[['i', 'B', 'C', 'D', 'l'], ['i', 'A', 'E', 'I', 'H', 'm'], ['m', 'H', 'I', 'E', 'k']]  </rosparam>
 		<param name = "initial_station" type="string" value="WS1"/>
 	        <param name="map_yaml_path" value="home/russell/thesis_ws/src/thesis_sim/ddzoning/assets/carter_LEfloor_navigation.yaml" />
 		<param name="iteration_count" type="int" value="50000" />
@@ -31,8 +31,8 @@
 		<node name="set_navigation_goal" pkg="ddzoning" type="set_goal.py" output="screen"/>
 	</group>
 	<group ns="carter3">
-		<rosparam param="starting_stations">['WS5', 'WS11', 'WS16', 'WS12', 'WS13', 'WS8', 'WS17', 'WS18', 'WS15'] </rosparam>
-		<rosparam param="starting_segments">[['s', 'Y', 'Z', 'x'], ['x', 'Z', 't'], ['t', 'U', 'V', 'u'], ['m', 'L', 'p'], ['m', 'L', 'p', 'R', 'S', 'T', 's'], ['u', 'a', 'y'], ['y', 'a', 'b', 'z'], ['z', 'b', 'c', 'w']] </rosparam>
+		<rosparam param="starting_stations">['WS17', 'WS16', 'WS12', 'WS13', 'WS11', 'WS8', 'WS6', 'WS18', 'WS15'] </rosparam>
+		<rosparam param="starting_segments">[['y', 'a', 'Z', 'x'], ['x', 'Z', 't'], ['u', 'a', 'Z', 'Y', 's'], ['u', 'V', 'U', 't'], ['t', 'U', 'T', 'S', 'R', 'p'], ['p', 'L', 'M', 'N', 'n'], ['s', 'Y', 'Z', 'a', 'b', 'z'], ['z', 'b', 'c', 'w']] </rosparam>
 		<param name = "initial_station" type="string" value="WS18"/>
 	        <param name="map_yaml_path" value="home/russell/thesis_ws/src/thesis_sim/ddzoning/assets/carter_LEfloor_navigation.yaml" />
 		<param name="iteration_count" type="int" value="50000" />
