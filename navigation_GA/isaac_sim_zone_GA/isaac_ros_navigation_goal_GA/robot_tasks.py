@@ -13,7 +13,7 @@ import pandas as pd
 #from goal_generators import RandomGoalGenerator, GoalReader
 from zone_GA.ZoneControl import zone_control
 from zone_GA.part import part
-from Solution import Solution_module
+from SolutionGA import Solution_module
 import concurrent.futures
 import time
 from rospy.numpy_msg import numpy_msg
@@ -702,9 +702,9 @@ class robot_task(Solution_module):
         self.carter2D.clear()
         self.carter3D.clear()
 
-        currentws = self.zone.phase2_ws()
-        part_list = self.solution_mod.load_sharing(part_list, currentws) #start load sharing
-
+        #currentws = self.zone.phase2_ws()
+        part_list = self.solution_mod.load_sharing(part_list, self.zonews_sorted) #start load sharing
+        
         self.add_adjustD(self.carter1D, part_list[0], self.carter1_pos) #add adjusted parts to each robot dictionary
         self.add_adjustD(self.carter2D, part_list[1], self.carter2_pos)
         self.add_adjustD(self.carter3D, part_list[2], self.carter3_pos)
@@ -835,7 +835,6 @@ class robot_task(Solution_module):
             writerobj.writerow(writelist)
             file.close()
         
-
     def rolling_window(self):
         while(True):
             currentTime = rospy.get_rostime()

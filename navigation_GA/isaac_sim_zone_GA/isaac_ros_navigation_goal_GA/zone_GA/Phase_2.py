@@ -10,6 +10,8 @@ from csv import writer
 import time
 import os
 import rospkg
+from matplotlib.animation import FuncAnimation
+import concurrent.futures
 
 class Phase2(Phase1):
     def __init__(self):
@@ -29,6 +31,10 @@ class Phase2(Phase1):
         self.workstation_dist_mtx = self.phase1.workstation_dist_mtx #contains the distances between every workstation
         self.all_critical_points = self.phase1.critical_points
         self.num_of_zones = self.phase1.nz
+
+        #for graphing
+        self.ws_xy = self.phase1.workstation_loc
+        
 
         self.Vel = self.phase1.V#could improve this by just passing it in
         self.tl = self.phase1.tl
@@ -51,11 +57,18 @@ class Phase2(Phase1):
         #path,dist = self.phase1.shortest_dist('i','p',self.adj_matrix)
         #print(path)
         #print(dist)
-        print("phase 1 initial zone design")
-        print(self.P_initial_WS)
-        print(self.P_initial_CS)
+        #print("phase 1 initial zone design")
+        #print(self.P_initial_WS)
+        #print(self.P_initial_CS)
 
     def start_GA(self,exetime):
+
+        #self.kill_disp_thread = False
+        #self.displaycs = copy.deepcopy(self.P_initial_CS)
+        #pool = concurrent.futures.ThreadPoolExecutor(1)#add one for data recording
+        #pool.submit(self.rundisplay)
+        #pool.shutdown(wait=False)
+
         self.all_path()
         pop_size = 60
         gen_size = 100
@@ -137,6 +150,8 @@ class Phase2(Phase1):
             print("workstations:\n",very_bestws)
             print("crit segments:\n",very_bestcs,"\n")
             SVpPlot.append(allSVp/pop_size)
+            #display zones
+            self.displaycs = copy.deepcopy(very_bestcs)
             
             #Compare
             #if very best is better than opt then replace
@@ -438,6 +453,8 @@ class Phase2(Phase1):
         #plt.legend()
         
         #plt.show()
+
+        self.kill_disp_thread = True
 
     def gen_solset(self,num_pop,neigh_range, ws_neigh):
         #this function generates an inital population set
@@ -1371,6 +1388,61 @@ class Phase2(Phase1):
                         union_mtx = self.adj_remove_seg(path,union_mtx)
 
         return union_mtx
+    
+    def display(self, i):
+
+        plt.cla()
+
+        #plot map xy for every point and connect to neighbor
+        x_points = np.array([self.all_critical_points.get('x')])
+        y_points = np.array([self.all_critical_points.get('y')])
+
+        #plot points
+        plt.plot(x_points, y_points, 'ok', markersize = 3)
+
+        for row in range(len(self.adj_matrix)):
+            for col in range(len(self.adj_matrix)):
+                if self.adj_matrix[row,col] != 0:
+                    x_line = np.array([])
+                    y_line = np.array([])
+                    x_line = np.append(x_line,x_points[0][row])
+                    y_line = np.append(y_line,y_points[0][row])
+                    x_line = np.append(x_line,x_points[0][col])
+                    y_line = np.append(y_line,y_points[0][col])
+                    plt.plot(x_line,y_line, ls = '-', color = 'k')
+        
+        #plot workstaions
+        station_x = np.array([self.ws_xy.get('x')])
+        station_y = np.array([self.ws_xy.get('y')])
+        plt.plot(station_x, station_y, 'sb', markersize = 4)
+
+        #plot zones
+        zone_color = np.array(['#0000FF', '#FF7F50', '#FF1493'])
+        i=0
+        for zone in self.displaycs:
+            #print("zone to paint",zone)
+            zcolor = zone_color[i]
+            i += 1
+            for segment in zone:
+                for criti in range(len(segment)):
+                    if criti+1 == len(segment):
+                        break
+                    crita = segment[criti]
+                    critb = segment[criti+1]
+                    x_line = np.array([])
+                    y_line = np.array([])
+                    x_line = np.append(x_line,self.all_critical_points.at[crita,'x'])
+                    y_line = np.append(y_line,self.all_critical_points.at[crita,'y'])
+                    x_line = np.append(x_line,self.all_critical_points.at[critb,'x'])
+                    y_line = np.append(y_line,self.all_critical_points.at[critb,'y'])
+                    plt.plot(x_line, y_line, ls = '-', color = zcolor, linewidth = 2.0)
+
+    def rundisplay(self):
+        #while(not self.kill_disp_thread):
+        self.ani = FuncAnimation(plt.gcf(), self.display, frames = 100, interval = 500)
+        plt.show()
+        #return
+
     #getters
     def get_shortest_dist(self,i,j):
         #i and j are in form "WS1"

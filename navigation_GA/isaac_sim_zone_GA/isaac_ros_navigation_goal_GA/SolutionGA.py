@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-#!/usr/bin/env python
 import pandas as pd
 import rospy
 import copy
@@ -18,10 +17,9 @@ class Solution_module():
     def __init__(self):
         self.num_zones = 0
 
-        self.workstation_points = pd.read_csv(os.path.join(rospkg.RosPack().get_path('isaac_sim_zone_GA'), 'isaac_ros_navigation_goal_GA/zone_SA/data/LE','Workstation_points.csv'), sep=',', header=0, names=['workstation','critical_points'], encoding = 'utf-8')
-        self.workstation_loc = pd.read_csv(os.path.join(rospkg.RosPack().get_path('isaac_sim_zone_GA'), 'isaac_ros_navigation_goal_GA/zone_SA/data/LE','Workstation_Loaction.csv'), sep=',', header=0, names=['x','y'], encoding = 'utf-8')
+        self.workstation_points = pd.read_csv(os.path.join(rospkg.RosPack().get_path('isaac_sim_zone_GA'), 'isaac_ros_navigation_goal_GA/zone_GA/data/LE','Workstation_points.csv'), sep=',', header=0, names=['workstation','critical_points'], encoding = 'utf-8')
+        self.workstation_loc = pd.read_csv(os.path.join(rospkg.RosPack().get_path('isaac_sim_zone_GA'), 'isaac_ros_navigation_goal_GA/zone_GA/data/LE','Workstation_Loaction.csv'), sep=',', header=0, names=['x','y'], encoding = 'utf-8')
     
-
     def load_sharing(self, part_list, current_ws):
         #look at parts that are waiting for the robot to pickup
             #the robots Q
@@ -31,7 +29,7 @@ class Solution_module():
             #add part to next zone robot Q(only if robot Q in next zone is 0 or 1)
             #if the next zone is busy have robot bypass the transfer station and deliver part to the next WS
         
-        print("in load sharing")
+        print("in load sharing GA")
         #get all possible combinations
         self.num_zones = len(current_ws)
         size_of_comb = []
