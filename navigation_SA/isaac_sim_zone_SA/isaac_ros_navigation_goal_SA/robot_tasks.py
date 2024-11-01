@@ -460,17 +460,12 @@ class robot_task(Solution_module):
             print("processing transfer part:",part.get_ID())
             #find closest transfer station from current point
             #[(1,2),(1,3),(2,3)] -transfer stations
+            tszone = [[1,2],[1,3],[2,3]]
             #need to edit this so that it is not depended on the current 3 zone deisgn
             #possible_ts = []
             if((current_zone == 1 and next_zone == 2) or (current_zone == 2 and next_zone == 1)): possible_ts = trans_ws[0]
             elif((current_zone == 1 and next_zone == 3) or (current_zone == 3 and next_zone == 1)): possible_ts = trans_ws[1] 
             elif((current_zone == 2 and next_zone == 3) or (current_zone == 3 and next_zone == 2)): possible_ts = trans_ws[2] 
-
-            for pairi in range(len(self.tszone)):
-                if (current_zone in self.tszone[pairi]) and (next_zone in self.tszone[pairi]):
-                    possible_ts = trans_ws[pairi]
-                    break
-
             part.set_tsthru(False)
 
             print("possible transfer stations for zone:", current_zone,"\n",possible_ts)
@@ -479,7 +474,7 @@ class robot_task(Solution_module):
             #move part though to another zone
             possible_zones = []
             if len(possible_ts) == 0:
-                for zonepair in self.tszone:
+                for zonepair in tszone:
                     if (next_zone in zonepair) and (current_zone not in zonepair):
                         possible_zones = copy.deepcopy(zonepair)
                         if possible_zones[0] == next_zone:
@@ -487,7 +482,7 @@ class robot_task(Solution_module):
                         else:
                             possible_zone = possible_zones[0]
                         zonec = 0
-                        for zonep in self.tszone: 
+                        for zonep in tszone: 
                             if (possible_zone in zonep) and (current_zone in zonep):
                                 possible_ts = trans_ws[zonec]
                                 print("part going through one zone and into another")
@@ -518,8 +513,8 @@ class robot_task(Solution_module):
                     best_ts = nextws
                     part.set_transfer(False)
                 else:
-                    print("next possible_ts:", trans_ws[self.tszone.index(possible_zones)])
-                    best_ts = self.find_closestTS(currentws, trans_ws[self.tszone.index(possible_zones)]) #find the next transfer station
+                    print("next possible_ts:", trans_ws[tszone.index(possible_zones)])
+                    best_ts = self.find_closestTS(currentws, trans_ws[tszone.index(possible_zones)]) #find the next transfer station
 
             part.going_to_ts(best_ts.replace("WS",""))
 
