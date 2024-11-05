@@ -26,12 +26,15 @@ https://docs.omniverse.nvidia.com/isaacsim/latest/installation/install_ros.html#
 10. Press the play button in the tool bar to the left
     
 11. In a terminal run:
+
 roslaunch carter_2dnav_zone_SA multiple_robot_carter_navigation.launch env_name:=LEfloor
     
 12. In another terminal run:
+
 roslaunch isaac_sim_zone_SA isaac_sim_zone.launch
 
 13. In another terminal run:
+
 ./clear_costmap.sh
 
 Current Parameters:
