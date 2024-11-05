@@ -38,21 +38,36 @@ roslaunch isaac_sim_zone_SA isaac_sim_zone.launch
 ./clear_costmap.sh
 
 Current Parameters:
+
 Wd 0.5 (weights for phase 1)
+
 Wf 0.5
+
 V 236.2 (robot velocity) (foot/min)
+
 tl 0.042 (load time) (min)
+
 tu 0.042
+
 T 8 (length of work day) (hours)
+
 lt 120 (expexted lost time due to charging) (min)
+
 
 adj_dist: 243.64 (feet) distance for another workstation to be considered adjacent
 cmax = 500 # of iterations 
+
 M = 500 # of temp reductions
+
 Ti = 4.5 initial temperature
+
 Tf = 0.35 final temperature
 
+
 IM_freq = 1 (min) frequency to sample the current zone balence in "intensive monitoring mode"
+
 NM_freq = 3 (min) frequency to sample the current zone balence in "non-intensive monitoring mode"
+
 t1 = 5 (min) time to switch to "non-intensive monitoring mode"
+
 t2 = 15 (min) time to start zone repair 
