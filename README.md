@@ -26,7 +26,22 @@ https://docs.omniverse.nvidia.com/isaacsim/latest/installation/install_ros.html#
 10. Press the play button in the tool bar to the left
     
 11. In a terminal run:
-roslaunch carter_2dnav multiple_robot_carter_navigation.launch env_name:=warehouse_build
     
-12. In another terminal run:
-roslaunch isaac_ros_navigation_goal isaac_ros_navigation_goal.launch
+ roslaunch carter_2dnav_ddzone multiple_robot_carter_navigation.launch env_name:=LEfloor
+
+13. In another terminal run:
+
+ roslaunch ddzoning sim.launch
+
+14. In another terminal run:
+ 
+ ./clear_costmap.sh
+
+
+Current parameters:
+
+V = 236.2 (foor/min) robot velocity
+
+tl =
+
+
