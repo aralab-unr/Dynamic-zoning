@@ -61,6 +61,9 @@ mutation_rate = 0.45
 
 selection_size = 10
 
+Ca = 0.5 weights for shortest job first with aging
+
+Cd = 10 
 
 IM_freq = 1 (min) frequency to sample the current zone balence in "intensive monitoring mode"
 
