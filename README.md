@@ -40,8 +40,25 @@ https://docs.omniverse.nvidia.com/isaacsim/latest/installation/install_ros.html#
 
 Current parameters:
 
-V = 236.2 (foor/min) robot velocity
+V = 236.2 (foot/min) robot velocity
 
-tl =
+tl = 0.042 (min) load time
 
+tu = 0.042 (min) unload time
+
+adj_dist = 243.64 (feet) distance for another workstation to be considered adjacent
+
+Ca = 0.5 weights for shortest job first with aging
+
+Cd = 10 
+
+L_TOL = 18 (min) maximum variation in standard deviation until a imbalence is declared
+
+T_LT = 15 (min) amount of time till zone repair
+
+T_AC = 2 (min) fequency to run weighted average consensus
+
+E_t = 2 # of episodes
+
+I_t = 10 # number of iterations
 
