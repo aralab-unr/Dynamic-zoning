@@ -69,3 +69,5 @@ NM_freq = 3 (min) frequency to sample the current zone balence in "non-intensive
 t1 = 5 (min) time to switch to "non-intensive monitoring mode"
 
 t2 = 15 (min) time to start zone repair 
+
+SV_pTol = 0.2 highest SV_p value accepted before an imbalence is declared
