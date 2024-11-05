@@ -39,22 +39,22 @@ roslaunch isaac_sim_zone_SA isaac_sim_zone.launch
 
 Current Parameters:
 
-Wd 0.5 (weights for phase 1)
+Wd = 0.5 (weights for phase 1)
 
-Wf 0.5
+Wf = 0.5
 
-V 236.2 (robot velocity) (foot/min)
+V = 236.2 (robot velocity) (foot/min)
 
-tl 0.042 (load time) (min)
+tl = 0.042 (load time) (min)
 
-tu 0.042
+tu = 0.042
 
-T 8 (length of work day) (hours)
+T = 8 (length of work day) (hours)
 
-lt 120 (expexted lost time due to charging) (min)
+lt = 120 (expexted lost time due to charging) (min)
 
 
-adj_dist: 243.64 (feet) distance for another workstation to be considered adjacent
+adj_dist = 243.64 (feet) distance for another workstation to be considered adjacent
 cmax = 500 # of iterations 
 
 M = 500 # of temp reductions
