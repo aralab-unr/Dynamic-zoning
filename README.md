@@ -55,6 +55,7 @@ lt = 120 (expexted lost time due to charging) (min)
 
 
 adj_dist = 243.64 (feet) distance for another workstation to be considered adjacent
+
 cmax = 500 # of iterations 
 
 M = 500 # of temp reductions
@@ -71,3 +72,5 @@ NM_freq = 3 (min) frequency to sample the current zone balence in "non-intensive
 t1 = 5 (min) time to switch to "non-intensive monitoring mode"
 
 t2 = 15 (min) time to start zone repair 
+
+SV_pTol = 0.2 highest SV_p value accepted before an imbalence is declared
