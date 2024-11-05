@@ -53,6 +53,9 @@ T = 8 (length of work day) (hours)
 
 lt = 120 (expexted lost time due to charging) (min)
 
+Ca = 0.5 weights for shortest job first with aging
+
+Cd = 10 
 
 adj_dist = 243.64 (feet) distance for another workstation to be considered adjacent
 
