@@ -37,6 +37,11 @@ roslaunch isaac_sim_zone_SA isaac_sim_zone.launch
 
 ./clear_costmap.sh
 
+
+* The expiremental data used in the paper is found under Experimental_data.xlsx
+* Video of simulation can be found here: https://www.youtube.com/watch?v=yVi026oVD7U
+
+
 Current Parameters:
 
 Wd = 0.5 (weights for phase 1)
