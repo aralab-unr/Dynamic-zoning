@@ -46,7 +46,7 @@ tl = 0.042 (min) load time
 
 tu = 0.042 (min) unload time
 
-adj_dist = 243.64 (feet) distance for another workstation to be considered adjacent
+adj_dist = 300.00 (feet) distance for another workstation to be considered adjacent
 
 Ca = 0.5 weights for shortest job first with aging
 
