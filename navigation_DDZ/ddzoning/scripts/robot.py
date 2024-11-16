@@ -34,9 +34,13 @@ class Robot(Zone_func):
         self.num_robot = rospy.get_param('/num_robots') #total number of robots in the system
         self.range = rospy.get_param('/range') #communication range of the robot
         self.zoneID = int(''.join(filter(lambda i: i.isdigit(), rospy.get_namespace())))
+        if self.zoneID == 1:
+            self.DDZStarter = True
+        else:
+            self.DDZStarter = False
 
         #inheit the zone support class
-        self.adj_dist = 300
+        self.adj_dist = 300.00
         super().__init__(self.num_robot, self.adj_dist)
 
         #Publishers 
@@ -52,6 +56,7 @@ class Robot(Zone_func):
         self.stop_robot_pub = rospy.Publisher("DD_zoning_active", Bool, queue_size=1) #to send to set_goal to stop/start robot
         self.confrim_newts = rospy.Publisher("confirm_ts", Bool, queue_size=5)
         self.zone_confirm = rospy.Publisher("zone_confirm", Bool, queue_size=5)
+        self.zone_cspub = rospy.Publisher("robot_primary_zone", Zone, queue_size=10)
 
         self.update_zone_pub = {}
         self.update_neigh_load_pub = {}
@@ -93,7 +98,6 @@ class Robot(Zone_func):
         self.position = np.array(self.position) #change position to a numpy array
         self.robot_start_time = rospy.get_rostime()
         self.recorded_load = np.zeros((self.numws,self.numws),dtype=np.float32)
-        self.window = 20 #defines how long a data point stays recorded (min)
         self.rec_pttimes = {} #keeps track of how long a pt has been recorded 
         for row in range(self.numws):
             for col in range(self.numws):
@@ -102,7 +106,7 @@ class Robot(Zone_func):
         self.robot_all_zone = []
         self.alarm_time = 15 #time till robot declares out of balence (min)
         self.avgc_interval = 120 #time till average consensus (secs)
-        self.bal_tolerance = 18  #balence tolerance (min)
+        self.bal_tolerance = 15  #balence tolerance (min)
         self.robot_avg = 0 #calculated robot avg load
         self.avgc_flag = False #flag to signal to other neighbors that avg has started
         self.imbalence = False #flag to signal that a zone been out of balence for too long
@@ -113,6 +117,8 @@ class Robot(Zone_func):
         self.DD_done = True #flag telling avg consensus and rolling window that DD zone has started
         self.repeat1 = 0 #for repeat zone updating (only what to update zone once but somtimes msg isnt sent)
         self.repeat2 = 0
+        self.seen_neighbors = []
+        self.startedDDZ = False
 
         #parameters for carter robot
         self.robot_pos = None
@@ -208,9 +214,16 @@ class Robot(Zone_func):
     def pub_robot_stop(self):
         msg = Bool()
         msg.data = not self.DD_done
-        for _ in range(5):
+        for _ in range(10):
             self.stop_robot_pub.publish(msg)
             rospy.sleep(0.25)
+
+    def pub_primaryzones(self):
+        zonemsg = Zone()
+        for segment in self.zone_segments:
+            zonemsg.segments.append(Row(segment))
+        zonemsg.robot = rospy.get_namespace()
+        self.zone_cspub.publish(zonemsg)
 
     #callbacks
     def update_neighbors(self, data):
@@ -234,6 +247,13 @@ class Robot(Zone_func):
             self.neigh_load[nname] = nload
             self.nimbalence[nname] = nbal
             #print(rospy.get_namespace(),": robot,",nname,"in range")
+            #if a new neighbor is detected connect to it and reload parts
+            #if (nname not in self.seen_neighbors):
+                #print("connecting to new neighbor")
+                #self.seen_neighbors.append(nname)
+                #self.startup(1)
+                #self.adjust_ts(False)
+                #self.send_reload(True)
         else:
             if nname in self.neigh_pos.keys(): #delete neighbor if not in range
                 del self.neigh_pos[nname]
@@ -241,6 +261,8 @@ class Robot(Zone_func):
                 del self.neigh_load[nname]
                 del self.prior_nload[nname]
                 del self.nimbalence[nname]
+                #if not self.DD_done: #reset seen neighbors if DDZ is active
+                    #del self.seen_neighbors[nname]
                 #print(rospy.get_namespace(),": robot,",nname,"no longer in range")
         
         self.pub_numNi() #publish the number of neighbors
@@ -248,6 +270,22 @@ class Robot(Zone_func):
     def update_q(self, part_msg):
         current_time = rospy.get_rostime()
         part_msg.timestamp = current_time.secs
+
+        '''
+        #determine if part going to ts or the next processing WS
+        if(part_msg.goal2 != part_msg.endgoal):
+            #only go to next ws if it is within a certain small distance from TS
+            print("transfer part!")
+            ts_end_dist = self.workstation_dist_mtx[self.ws_to_index(part_msg.goal2), self.ws_to_index(part_msg.endgoal)] * 0.3048 #convert to meters
+            print("to end_dist", ts_end_dist)
+            
+            if (ts_end_dist < self.transferable_dist):
+                part_msg.goal2 = copy.deepcopy(part_msg.endgoal)
+                print("part",part_msg.partID,"now going to", part_msg.goal2)
+                if part_msg.endgoal not in self.robot_all_zone:
+                    self.robot_all_zone.append(part_msg.endgoal)
+        '''
+
         self.robot_q[copy.deepcopy(part_msg.partID)] = copy.deepcopy(part_msg)
         self.rank_parts()
 
@@ -267,6 +305,9 @@ class Robot(Zone_func):
     
     def update_availability(self, data):
         self.leader_flag = data.data
+        if self.leader_flag == -1:
+            self.DD_done = False
+            self.pub_robot_stop()
 
     def send_load(self, zone_msg):
         print(rospy.get_namespace(),"in send load")
@@ -308,7 +349,8 @@ class Robot(Zone_func):
         print("send confirm new zone")
         msg = Bool()
         msg.data = True
-        self.zone_confirm.publish(msg)
+        for _ in range(3):
+            self.zone_confirm.publish(msg)
 
     def robot_ready(self,data):
             #print("carter 1 signal to send goal:", data.data)
@@ -417,7 +459,7 @@ class Robot(Zone_func):
         for it in range(10):
             neigh_avail += list(self.neigh_availibility.values())
             rospy.sleep(0.1)
-        if ((all(neigh_avail) == 0) and self.leader_flag == 0):
+        if (all(neigh_avail) == 0):
             return True
         else:
             return False
@@ -433,6 +475,7 @@ class Robot(Zone_func):
         for _ in range(5): #send it 5 times
             pub.publish(msg)
             rospy.sleep(0.1)
+        rospy.sleep(3)
 
     def get_neigh_exit(self):
         exitready_list = []
@@ -502,6 +545,13 @@ class Robot(Zone_func):
                 if self.zonets[neigh_ID] == [] and len(neigh_ts) > 1:
                     self.zonets[neigh_ID]= copy.deepcopy(neigh_ts) #append one ts to zone
 
+        #update robot all zone
+        self.robot_all_zone = copy.deepcopy(self.zone_stations)
+        for zs in self.zonets.values():
+            for s in zs:
+                if s not in self.zone_stations:
+                    self.robot_all_zone.append(copy.deepcopy(s))
+
         #update the yaml file
         #print("rewriting file")
         neighbor_station = {robot:zone[0] for robot, zone in self.neigh_zone.items()}
@@ -526,7 +576,9 @@ class Robot(Zone_func):
     def startup(self, iterations):
         #performed after self.neigh_pos and self.neighzone are set
         #looks at neighbor ws and cs and updates ts and yaml
+
         for iteration in range(0, iterations): #takes a few iterations to collect all neighbor positions 
+            #self.pub_primaryzones()
             #print("startup iteration",iteration)
             self.get_neigh_zone()
             #collect known segemts
@@ -658,7 +710,7 @@ class Robot(Zone_func):
             tolerance = 0.5
             target_dist = 1
             while target_dist > tolerance:
-                self.position = self.position + dir*(self.vel*timediff) #move to the next target
+                self.position = self.position + dir*(self.V*timediff) #move to the next target
                 target_dist = np.linalg.norm(self.position-nextxy)
                 rospy.sleep(0.1)
         self.currentws = goalws
@@ -702,21 +754,29 @@ class Robot(Zone_func):
                 if (((curr_time.secs - s1.secs) > (self.alarm_time*60)) or detect_imbalence):
                     print(rospy.get_namespace(),"imbalence detected")
 
+                    #do not go into DD zoning unless this robot is connected to neighbors
+                    while(len(self.neigh_pos) == 0):
+                        self.DD_done = True
+                        #self.pub_robot_stop()
+                    self.DD_done = False
+                    self.pub_robot_stop() 
+                    
                     #designate the first one to start DDZ as leader
-                    if not detect_imbalence:
+                    #if not detect_imbalence:
+                        #self.leader_flag = 1
+                        #self.started_DDZ = True
+                    #else:
+                        #self.started_DDZ = False
+                        #self.leader_flag = 0
+                    
+                    if self.DDZStarter: #designate the robot 1 as leader
                         self.leader_flag = 1
                     else:
-                        self.leader_flag = -1
+                        self.leader_flag = 0
 
                     self.imbalence = True #flag telling neighbors that a imabalence has been detected
-
-                    #do not go into DD zoning unless this robot is connected to neighbors
-                    while( not self.neigh_pos):
-                        self.DD_done = True 
-                        #self.pub_robot_stop()
-                        #self.vel = 8.5
-                    #self.vel = 0
                     self.DD_done = False #once DD_done turns false then robots stops moving
+                    
                     #self.pub_robot_stop()
                     
                     #reset recorded times
@@ -736,14 +796,15 @@ class Robot(Zone_func):
                         #row = self.ws_to_index(part.goal1)
                         #col = self.ws_to_index(part.goal2)
                         #self.recorded_load[row, col] += 1
-
+                    #rospy.sleep(15) #give time for robots to enter DDZ
                     print("going into DD zoning")
                     self.DD_zoning() #start zone repair
+                    self.started_DDZ = False
                     s1 = rospy.get_rostime() #reset DDZ timer
             
             if(status and previous_status): #if system has remain in balence
                 #is system has remained balenced for 5min reset DDZ timer and declare system balenced
-                if timer/60 > 6.5:
+                if timer/60 > 4.5:
                     balence_status = True
                     s1 = rospy.get_rostime()
             
@@ -752,12 +813,12 @@ class Robot(Zone_func):
                 s2 = rospy.get_rostime()
 
             elif(not status and not previous_status):
-                if timer/60 > 6.5:
+                if timer/60 > 4.5:
                     balence_status = False
 
             print(rospy.get_namespace(), "balsts, status, prevssts", balence_status, status, previous_status)
 
-            rospy.sleep(30)
+            rospy.sleep(10)
     
     def zone_load(self, ws_in_zone):
         #equations 11-14
@@ -899,6 +960,8 @@ class Robot(Zone_func):
                 timer = currtime.secs - start_time.secs 
                 if not self.DD_done: #dont run average consensus while DD zoning is active
                     start_time = rospy.get_rostime()
+            if not self.DD_done:
+                continue
 
             print("******starting avg consensus********")
             priori_load = copy.deepcopy(self.robot_avg)
@@ -971,12 +1034,15 @@ class Robot(Zone_func):
     def DD_zoning(self):
         print(rospy.get_namespace(), "starting DD zoning")
         self.DD_done = False #once DD_done is false the robot stop moveing
-        self.pub_robot_stop()
+        #self.pub_robot_stop()
         #self.startup(1) #to update yaml and all zone
+        #if self.started_DDZ: #if this robot started DDZ then this robot will be the leader
+            #self.leader_flag = 1
+        #rospy.sleep(10) #wait for things to 
 
         #self.send_reload(True) #reload parts in the queue
         #rospy.sleep(10) #sort of used to allow disconnected robots to connect to the system
-
+        print(rospy.get_namespace(),"caculating load")
         self.prior_load = copy.deepcopy(self.robot_load)
         self.robot_load = self.zone_load(self.robot_all_zone) #get a nore accurte zone load
         print(rospy.get_namespace(),"load going in:", self.robot_load)
@@ -989,18 +1055,19 @@ class Robot(Zone_func):
         Ti = 4.5
         k = self.max_it
 
-        
-        #which ever robot gets here first will be declared the leader
-        #if self.get_lead_availability():
-            #self.leader_flag = 1 #1 signifies that robot is the leader
-            #for neigh in self.neigh_pos.keys():
-        
-        #if self.zoneID == 1: #designate robot1 as the initial leader
-            #self.leader_flag = 1
-            #for neigh in self.neigh_pos.keys():
-                #self.send_neigh_availability(-1, neigh) #-1 signifies follower
-        #else:
-            #self.leader_flag = -1
+        rospy.sleep(self.zoneID*2) #sleep relative to ID amount
+
+        '''
+        if self.leader_flag == 1:
+            if self.get_lead_availability(): #if all neighbors are ready 
+                for neigh in self.neigh_pos.keys():
+                    self.send_neigh_availability(-1, neigh) #-1 signifies follower claiming neighbors
+                rospy.sleep(3) #give time to send message
+            else:
+                self.leader_flag = -1 #if not all neighbors are ready then this robot is not the leader
+        '''
+        if(self.leader_flag == 1):
+            rospy.sleep(11) #wait for neighbors to catch up
 
         for ep in range(1, self.max_episode+1):
             self.current_neighbors = copy.deepcopy(self.neigh_pos)
@@ -1013,8 +1080,9 @@ class Robot(Zone_func):
                 self.pub_robot_stop()
                 while(not self.neigh_pos):
                     self.DD_done = True
-                self.DD_done = False
-                self.pub_robot_stop()
+
+            self.DD_done = False
+            self.pub_robot_stop()
                     #self.vel = 8.5
                 #self.vel = 0
             print(rospy.get_namespace(),"got neighbors")
@@ -1023,18 +1091,20 @@ class Robot(Zone_func):
             while(self.leader_flag != 1):
                 #rospy.sleep(random.uniform(0,1)*10)
                 rospy.sleep(0.1)
-
+            '''
+            back_waiting = False
+            if 1 in self.neigh_availibility.values(): #case for if there are two leaders comming out of waiting
+                for neighbor in self.neigh_availibility.keys():
+                    if 1 == self.neigh_availibility[neighbor]:
+                        zone_n = int(''.join(filter(lambda i: i.isdigit(), neighbor)))
+                        if self.zoneID > zone_n:
+                            self.leader_flag = -1 #not the leader
+                            back_waiting = True
+            if back_waiting:
+                continue
+            '''
             for neigh in self.neigh_pos.keys():
                 self.send_neigh_availability(-1, neigh) #-1 signifies follower
-
-            #to handle situation when robtots enter DDzoning at the same time and reach the while loop at the same time
-            if self.leader_flag != 1:
-                self.max_episode += 1
-                if self.get_lead_availability():
-                    print("ok to be leader")
-                    self.leader_flag = 1
-                else:
-                    continue
 
             #a robot gets here by having each neighbor be ready and itself be ready
             #send a non-ready status to all neighbors to claim them and keep them in the while loop above
@@ -1344,7 +1414,7 @@ class Robot(Zone_func):
 
             #print("3")
             self.adjust_neigh_ts()
-            
+
             #print("4")
             self.send_reload(True)
             #reload parts from all neighbors
@@ -1385,17 +1455,21 @@ class Robot(Zone_func):
             error.append(best_error)
             #release neighbors and get back into top while loop
             self.leader_flag = -1
+            #print(rospy.get_namespace(),"releasing neighbors")
+            #for neigh in self.neigh_pos.keys():
+                #self.send_neigh_availability(0, neigh) #-1 signifies follower claiming neighbors
+            #rospy.sleep(1)
             #have robot pick next leader
             neighbors = list(self.current_neighbors.keys())
             neigh = random.choice(neighbors)
-            self.send_neigh_availability(1, neigh)
+            self.send_neigh_availability(1, neigh) #select a robot to be leader
             print("end of iterations")
             rospy.sleep(0.1)
         
         #out of episodes 
         print(rospy.get_namespace(),"out of episodes")
         self.write_error(error)
-        self.exit_ready = 1
+        self.exit_ready = 0
         all_ready = self.get_neigh_exit()
         while(all_ready != 1):
             all_ready = self.get_neigh_exit()
@@ -1542,7 +1616,7 @@ class Robot(Zone_func):
             rospy.sleep(0.05)
         rospy.sleep(.25) #wait to recieve requeued parts
         print(rospy.get_namespace())
-        print(self.recorded_load)
+        #print(self.recorded_load)
 
     def update_neigh_loads(self):
         #create publisher to send to neighbor zone
@@ -1608,6 +1682,7 @@ class Robot(Zone_func):
     def record_robot_pos(self):
         while not rospy.is_shutdown():
             #WS is writen as "WS1" and robot is a number:
+            '''
             myrow = [['']]*self.num_robot
             with open(os.path.join(rospkg.RosPack().get_path('ddzoning'), 'scripts/data','visitedWS.csv'), 'r') as file:
                 alllines = reader(file)
@@ -1620,15 +1695,15 @@ class Robot(Zone_func):
                 for row in myrow:
                     alllines.writerow(row)
                 file.close()
-            
+            '''
             distfile = 'carter'+ str(self.zoneID) + 'dist.csv'
             current_time = rospy.get_rostime()
-            with open(os.path.join(rospkg.RosPack().get_path('isaac_sim_zone'), 'isaac_ros_navigation_goal/zone/data', distfile), 'a') as file:
+            with open(os.path.join(rospkg.RosPack().get_path('ddzoning'), 'scripts/data', distfile), 'a') as file:
                 writerobj = writer(file)
                 writelist = [current_time.secs, self.robot_travel_dist]
                 writerobj.writerow(writelist)
                 file.close()
-            rospy.sleep(10)
+            rospy.sleep(30)
 
     def record_zone(self):
         #record zone design
@@ -1676,6 +1751,7 @@ def main():
     pool.submit(st_robot.avg_consenus)
     pool.shutdown(wait=False)
 
+    rospy.sleep(1)
     st_robot.startup(20)
     st_robot.adjust_ts(False)
     rospy.sleep(1)

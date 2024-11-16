@@ -64,9 +64,9 @@ class Map(Zone_func):
         rospy.Subscriber("/robot_part", Goal, self.update_part) #suscriber for when parts are dropped off at WS
         for roboti in range(1,self.num_robot+1): #suscribe to all other robot positions 
             ns1 = "/carter" + str(roboti) + "/robot_pos"
-            ns2 = "/carter" + str(roboti) + "/robot_zone"
+            ns2 = "/carter" + str(roboti) + "/robot_primary_zone"
             rospy.Subscriber(ns1, Position, self.update_robot_pos)
-            #rospy.Subscriber(ns2, Zone, self.update_robot_zone) #used for recording purposes  
+            rospy.Subscriber(ns2, Zone, self.update_robot_zone) #used for recording purposes  
  
         #local ws parameters
         self.robot_claim = {} #stores info about what robot owns what station
@@ -75,6 +75,7 @@ class Map(Zone_func):
 
         #for recording
         self.startTime = rospy.get_rostime()
+        self.zonecs = [[],[],[]]
 
     def load_parts(self):
         routes = pd.read_csv(os.path.join(rospkg.RosPack().get_path('ddzoning'), 'scripts/data/LE', 'processing_routes_test.csv'), sep=',', header=0, names=['part_type','route','qty'], encoding = 'utf-8')
@@ -121,17 +122,39 @@ class Map(Zone_func):
 
         
         #plot robot positions
-        robot_color = np.array(['#0000FF','#FF7F50', '#FF1493', '#FFD700', '#7CFC00'])
-        for robot, pos in self.robot_pos.items():
-            roboti = int(''.join(filter(lambda i: i.isdigit(), robot)))
-            plt.plot(pos[0],pos[1], 'D' ,markersize = 5, color = robot_color[roboti])
+        #robot_color = np.array(['#0000FF','#FF7F50', '#FF1493', '#FFD700', '#7CFC00'])
+        #for robot, pos in self.robot_pos.items():
+            #roboti = int(''.join(filter(lambda i: i.isdigit(), robot)))
+            #plt.plot(pos[0],pos[1], 'D' ,markersize = 5, color = robot_color[roboti])
+
+
+        #plot zones
+        zone_color = np.array(['#0000FF', '#FF7F50', '#FF1493'])
+        i=0
+        for zone in self.zonecs:
+            #print("zone to paint",zone)
+            zcolor = zone_color[i]
+            i += 1
+            for segment in zone:
+                for criti in range(len(segment)):
+                    if criti+1 == len(segment):
+                        break
+                    crita = segment[criti]
+                    critb = segment[criti+1]
+                    x_line = np.array([])
+                    y_line = np.array([])
+                    x_line = np.append(x_line,self.critical_points.at[crita,'x'])
+                    y_line = np.append(y_line,self.critical_points.at[crita,'y'])
+                    x_line = np.append(x_line,self.critical_points.at[critb,'x'])
+                    y_line = np.append(y_line,self.critical_points.at[critb,'y'])
+                    plt.plot(x_line, y_line, ls = '-', color = zcolor, linewidth = 3.0)
         
         #plt.show()
     
     def rundisplay(self):
         self.ani = FuncAnimation(plt.gcf(), self.display)
         plt.show()
-
+    
     def start_station(self, station):
         #function processes the part that is in the queue of the station
         #this continually runs parts in the queue
@@ -241,6 +264,7 @@ class Map(Zone_func):
             msg = Goal()
             msg.goal1 = currentws
             msg.goal2 = nextws
+            #msg.endgoal = nextws
             msg.partID = str(part.get_ID())
             msg.age = part.get_age()
             self.robot_part_pub[next_zone-1].publish(msg)
@@ -325,6 +349,7 @@ class Map(Zone_func):
             msg = Goal()
             msg.goal1 = currentws
             msg.goal2 = best_ts
+            #msg.endgoal = 'WS' + part.get_ogdropoff()
             msg.partID = str(part.get_ID())
             msg.age = part.get_age()
             try:
@@ -392,7 +417,7 @@ class Map(Zone_func):
 
     def record_throughputdata(self):
         print("starting throughput thread")
-        max_period = 100 
+        max_period = 500 
         time_period = 5 #5 #record throughput every 5 min
         current_period = 0
         while(current_period < max_period):
@@ -420,6 +445,17 @@ class Map(Zone_func):
     def update_robot_pos(self, pos_msg):
         self.robot_pos[pos_msg.robot] = [pos_msg.x, pos_msg.y]
         #print(self.robot_pos)
+
+    def update_robot_zone(self, zone_msg):
+        #for recording primary zones
+        rindex = zone_msg.robot
+        rindex = int(''.join(filter(lambda i: i.isdigit(), rindex))) - 1
+
+        self.zonecs[rindex] = []
+        for segemnt in zone_msg.segments:
+            self.zonecs[rindex].append(segemnt.data)
+        
+        #print("from map zone cs:\n",self.zonecs)
 
     def update_part(self, part_msg):
         partID = part_msg.partID
@@ -449,7 +485,7 @@ class Map(Zone_func):
             self.ws_part_holder[currentws][partID] = part#place in current ws part holder
             self.queue_part(part, currentws) #queue part for next robot
 
-        elif (part.get_transfer()):
+        elif (part.get_transfer() and currentws):# != part_msg.endgoal):
             #print("queuing transfer part")
             self.ws_part_holder[currentws][partID] = part#place in current ws part holder
             self.queue_part(part, currentws) #queue part for next robot
@@ -476,12 +512,12 @@ def main():
     #parts are loaded onto each station by thier queue,  stations[station].put(part)
     stations = active_map.get_stations()
     while not rospy.is_shutdown():
-        pool = concurrent.futures.ThreadPoolExecutor(max_workers=active_map.get_num_s() + 2)#add 2 for data recording
+        pool = concurrent.futures.ThreadPoolExecutor(max_workers=active_map.get_num_s() + 1)#add 2 for data recording and running display
         for station in stations: #threads are created here and call Process part function
             pool.submit(active_map.start_station, station)
             time.sleep(0.1)
         pool.submit(active_map.record_throughputdata)
-        pool.submit(active_map.rundisplay)
+        #pool.submit(active_map.rundisplay)
 
         pool.shutdown(wait=True)
         rospy.signal_shutdown("parts are finished processing")
